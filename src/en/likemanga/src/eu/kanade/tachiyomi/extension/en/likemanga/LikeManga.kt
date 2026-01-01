@@ -12,6 +12,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
@@ -115,7 +116,8 @@ class LikeManga : ParsedHttpSource() {
     override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val document = response.asJsoup()
+        val body = response.body.string()
+        val document = Jsoup.parse(body, response.request.url.toString())
         val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
             ?: throw Exception("Could not find manga ID")
 
