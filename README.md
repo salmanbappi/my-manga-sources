@@ -79,3 +79,5 @@ This project is not affiliated with Komikku/Mihon/Tachiyomi. Don't ask for help 
 official support means of Komikku/Mihon/Tachiyomi. All credits to the codebase goes to the original contributors.
 
 The developer of this application does not have any affiliation with the content providers available.
+## Setup Complete
+First build triggered automatically.
