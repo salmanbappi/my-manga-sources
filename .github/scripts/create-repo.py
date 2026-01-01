@@ -67,14 +67,14 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": apk.name,
+        "apk": f"https://raw.githubusercontent.com/salmanbappi/salmanbappi-manga-extension/main/apk/{apk.name}",
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
         "size": os.path.getsize(apk),
         "sha256": get_file_sha256(apk),
-        "icon": f"https://salmanbappi.github.io/salmanbappi-manga-extension/icon/{package_name}.png"
+        "icon": f"https://raw.githubusercontent.com/salmanbappi/salmanbappi-manga-extension/main/icon/{package_name}.png"
     }
     min_data = {
         **common_data,
