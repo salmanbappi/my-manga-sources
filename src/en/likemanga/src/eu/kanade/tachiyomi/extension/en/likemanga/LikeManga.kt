@@ -65,14 +65,14 @@ class LikeManga : ParsedHttpSource() {
         manga.author = document.select("li.author p.col-8").text()
         manga.description = document.select("div#summary_shortened, div.detail-content p").text()
         manga.genre = document.select("li.kind p.col-8 a").joinToString { it.text() }
-        
+
         val statusText = document.select("li.status p.col-8").text()
         manga.status = when {
             statusText.contains("Completed", true) -> SManga.COMPLETED
             statusText.contains("Ongoing", true) -> SManga.ONGOING
             else -> SManga.UNKNOWN
         }
-        
+
         manga.thumbnail_url = document.selectFirst("div.col-image img")?.attr("abs:src")
         return manga
     }
