@@ -128,7 +128,7 @@ class LikeManga : ParsedHttpSource() {
             val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
             val ajaxHtml = ajaxResponse.body.string()
             val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
-            
+
             val elements = ajaxDoc.select(chapterListSelector())
             if (elements.isEmpty()) {
                 hasNextPage = false
@@ -139,7 +139,7 @@ class LikeManga : ParsedHttpSource() {
                 page++
             }
             // Safety break to prevent infinite loops
-            if (page > 100) break 
+            if (page > 100) break
         }
 
         return chapters
