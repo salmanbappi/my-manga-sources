@@ -7,6 +7,9 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -15,6 +18,7 @@ import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -25,6 +29,8 @@ class LikeManga : ParsedHttpSource() {
     override val supportsLatest = true
 
     override val client: OkHttpClient = network.cloudflareClient
+
+    private val json: Json by injectLazy()
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -116,8 +122,7 @@ class LikeManga : ParsedHttpSource() {
     override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val body = response.body.string()
-        val document = Jsoup.parse(body, response.request.url.toString())
+        val document = response.asJsoup()
         val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
             ?: throw Exception("Could not find manga ID")
 
@@ -126,22 +131,29 @@ class LikeManga : ParsedHttpSource() {
         var hasNextPage = true
 
         while (hasNextPage) {
-            val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&mangaId=$mangaId&pageNum=$page"
+            val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&manga_id=$mangaId&page_num=$page"
             val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
-            val ajaxHtml = ajaxResponse.body.string()
-            val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
-
-            val elements = ajaxDoc.select(chapterListSelector())
-            if (elements.isEmpty()) {
+            val jsonString = ajaxResponse.body.string()
+            
+            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
+            val ajaxHtml = jsonObject["list_chap"]?.jsonPrimitive?.content ?: ""
+            
+            if (ajaxHtml.isBlank()) {
                 hasNextPage = false
             } else {
-                elements.forEach {
-                    chapters.add(chapterFromElement(it))
+                val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
+                val elements = ajaxDoc.select(chapterListSelector())
+                if (elements.isEmpty()) {
+                    hasNextPage = false
+                } else {
+                    elements.forEach {
+                        chapters.add(chapterFromElement(it))
+                    }
+                    page++
                 }
-                page++
             }
-            // Safety break to prevent infinite loops
-            if (page > 100) break
+            // Safety break to prevent excessive requests
+            if (page > 500) break
         }
 
         return chapters
