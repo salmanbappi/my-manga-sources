@@ -139,6 +139,17 @@ jobs:
           git commit --amend -m "$COMMIT_MESSAGE" --no-sign --allow-empty || echo "No changes to commit"
           git push origin HEAD:main --force
 
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.4.3-${{ github.run_number }}
+          name: Release v1.4.3 (Build ${{ github.run_number }})
+          files: ~/apk-artifacts/**/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Purge cached index on jsDelivr
         run: |
           curl https://purge.jsdelivr.net/gh/salmanbappi/salmanbappi-manga-extension@main/index.min.json
