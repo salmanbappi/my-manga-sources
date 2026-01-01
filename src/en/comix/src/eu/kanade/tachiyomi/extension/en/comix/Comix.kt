@@ -76,28 +76,43 @@ class Comix : HttpSource() {
                     url.addQueryParameter("sort", filter.toUriPart())
                 }
                 is StatusFilter -> {
-                    url.addQueryParameter("statuses", filter.toUriPart())
+                    filter.state.filter { it.state }.forEach {
+                        url.addEncodedQueryParameter("statuses[]", it.value)
+                    }
                 }
                 is TypeFilter -> {
-                    url.addQueryParameter("types", filter.toUriPart())
+                    filter.state.filter { it.state }.forEach {
+                        url.addEncodedQueryParameter("types[]", it.value)
+                    }
                 }
                 is DemographicFilter -> {
-                    url.addQueryParameter("demographics", filter.toUriPart())
+                    filter.state.filter { it.state }.forEach {
+                        url.addEncodedQueryParameter("demographics[]", it.value)
+                    }
                 }
                 is GenreFilter -> {
-                    val genres = filter.state
-                        .filter { it.state }
-                        .joinToString(",") { it.value }
-                    if (genres.isNotEmpty()) {
-                        url.addQueryParameter("genres", genres)
+                    filter.state.filter { it.state }.forEach {
+                        url.addEncodedQueryParameter("genres[]", it.value)
                     }
                 }
                 is ThemeFilter -> {
-                    val themes = filter.state
-                        .filter { it.state }
-                        .joinToString(",") { it.value }
-                    if (themes.isNotEmpty()) {
-                        url.addQueryParameter("themes", themes)
+                    filter.state.filter { it.state }.forEach {
+                        url.addEncodedQueryParameter("themes[]", it.value)
+                    }
+                }
+                is MinChaptersFilter -> {
+                    if (filter.state.isNotBlank()) {
+                        url.addQueryParameter("chapters_min", filter.state)
+                    }
+                }
+                is YearFromFilter -> {
+                    if (filter.state.isNotBlank()) {
+                        url.addQueryParameter("year_from", filter.state)
+                    }
+                }
+                is YearToFilter -> {
+                    if (filter.state.isNotBlank()) {
+                        url.addQueryParameter("year_to", filter.state)
                     }
                 }
                 else -> {}
@@ -159,6 +174,10 @@ class Comix : HttpSource() {
         TypeFilter(),
         DemographicFilter(),
         Filter.Separator(),
+        MinChaptersFilter(),
+        YearFromFilter(),
+        YearToFilter(),
+        Filter.Separator(),
         GenreFilter(),
         ThemeFilter()
     )
@@ -195,146 +214,119 @@ class Comix : HttpSource() {
         }
     }
 
-    private class StatusFilter : Filter.Select<String>(
+    private class CheckBoxFilter(name: String, val value: String) : Filter.CheckBox(name)
+
+    private class StatusFilter : Filter.Group<CheckBoxFilter>(
         "Status",
-        arrayOf(
-            "All",
-            "Releasing",
-            "Finished",
-            "On Hiatus",
-            "Discontinued",
-            "Not Yet Released"
-        )
-    ) {
-        fun toUriPart() = when (state) {
-            0 -> ""
-            1 -> "releasing"
-            2 -> "finished"
-            3 -> "on_hiatus"
-            4 -> "discontinued"
-            5 -> "not_yet_released"
-            else -> ""
-        }
-    }
-
-    private class TypeFilter : Filter.Select<String>(
-        "Type",
-        arrayOf(
-            "All",
-            "Manga",
-            "Manhwa",
-            "Manhua",
-            "Other"
-        )
-    ) {
-        fun toUriPart() = when (state) {
-            0 -> ""
-            1 -> "manga"
-            2 -> "manhwa"
-            3 -> "manhua"
-            4 -> "other"
-            else -> ""
-        }
-    }
-
-    private class DemographicFilter : Filter.Select<String>(
-        "Demographic",
-        arrayOf(
-            "All",
-            "Shounen",
-            "Seinen",
-            "Shoujo",
-            "Josei"
-        )
-    ) {
-        fun toUriPart() = when (state) {
-            0 -> ""
-            1 -> "2"
-            2 -> "4"
-            3 -> "1"
-            4 -> "3"
-            else -> ""
-        }
-    }
-
-    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
-
-    private class GenreFilter : Filter.Group<GenreCheckBox>(
-        "Genres",
         listOf(
-            GenreCheckBox("Action", "6"),
-            GenreCheckBox("Adult", "87264"),
-            GenreCheckBox("Adventure", "7"),
-            GenreCheckBox("Boys Love", "8"),
-            GenreCheckBox("Comedy", "9"),
-            GenreCheckBox("Crime", "10"),
-            GenreCheckBox("Drama", "11"),
-            GenreCheckBox("Ecchi", "87265"),
-            GenreCheckBox("Fantasy", "12"),
-            GenreCheckBox("Girls Love", "13"),
-            GenreCheckBox("Hentai", "87266"),
-            GenreCheckBox("Historical", "14"),
-            GenreCheckBox("Horror", "15"),
-            GenreCheckBox("Isekai", "16"),
-            GenreCheckBox("Magical Girls", "17"),
-            GenreCheckBox("Mature", "87267"),
-            GenreCheckBox("Mecha", "18"),
-            GenreCheckBox("Medical", "19"),
-            GenreCheckBox("Mystery", "20"),
-            GenreCheckBox("Philosophical", "21"),
-            GenreCheckBox("Psychological", "22"),
-            GenreCheckBox("Romance", "23"),
-            GenreCheckBox("Sci-Fi", "24"),
-            GenreCheckBox("Slice of Life", "25"),
-            GenreCheckBox("Smut", "87268"),
-            GenreCheckBox("Sports", "26"),
-            GenreCheckBox("Superhero", "27"),
-            GenreCheckBox("Thriller", "28"),
-            GenreCheckBox("Tragedy", "29"),
-            GenreCheckBox("Wuxia", "30")
+            CheckBoxFilter("Releasing", "releasing"),
+            CheckBoxFilter("Finished", "finished"),
+            CheckBoxFilter("On Hiatus", "on_hiatus"),
+            CheckBoxFilter("Discontinued", "discontinued"),
+            CheckBoxFilter("Not Yet Released", "not_yet_released")
         )
     )
 
-    private class ThemeFilter : Filter.Group<GenreCheckBox>(
-        "Themes",
+    private class TypeFilter : Filter.Group<CheckBoxFilter>(
+        "Type",
         listOf(
-            GenreCheckBox("Aliens", "31"),
-            GenreCheckBox("Animals", "32"),
-            GenreCheckBox("Cooking", "33"),
-            GenreCheckBox("Crossdressing", "34"),
-            GenreCheckBox("Delinquents", "35"),
-            GenreCheckBox("Demons", "36"),
-            GenreCheckBox("Genderswap", "37"),
-            GenreCheckBox("Ghosts", "38"),
-            GenreCheckBox("Gyaru", "39"),
-            GenreCheckBox("Harem", "40"),
-            GenreCheckBox("Incest", "41"),
-            GenreCheckBox("Loli", "42"),
-            GenreCheckBox("Mafia", "43"),
-            GenreCheckBox("Magic", "44"),
-            GenreCheckBox("Martial Arts", "45"),
-            GenreCheckBox("Military", "46"),
-            GenreCheckBox("Monster Girls", "47"),
-            GenreCheckBox("Monsters", "48"),
-            GenreCheckBox("Music", "49"),
-            GenreCheckBox("Ninja", "50"),
-            GenreCheckBox("Office Workers", "51"),
-            GenreCheckBox("Police", "52"),
-            GenreCheckBox("Post-Apocalyptic", "53"),
-            GenreCheckBox("Reincarnation", "54"),
-            GenreCheckBox("Reverse Harem", "55"),
-            GenreCheckBox("Samurai", "56"),
-            GenreCheckBox("School Life", "57"),
-            GenreCheckBox("Shota", "58"),
-            GenreCheckBox("Supernatural", "59"),
-            GenreCheckBox("Survival", "60"),
-            GenreCheckBox("Time Travel", "61"),
-            GenreCheckBox("Traditional Games", "62"),
-            GenreCheckBox("Vampires", "63"),
-            GenreCheckBox("Video Games", "64"),
-            GenreCheckBox("Villainess", "65"),
-            GenreCheckBox("Virtual Reality", "66"),
-            GenreCheckBox("Zombies", "67")
+            CheckBoxFilter("Manga", "manga"),
+            CheckBoxFilter("Manhwa", "manhwa"),
+            CheckBoxFilter("Manhua", "manhua"),
+            CheckBoxFilter("Other", "other")
+        )
+    )
+
+    private class DemographicFilter : Filter.Group<CheckBoxFilter>(
+        "Demographic",
+        listOf(
+            CheckBoxFilter("Shounen", "2"),
+            CheckBoxFilter("Seinen", "4"),
+            CheckBoxFilter("Shoujo", "1"),
+            CheckBoxFilter("Josei", "3")
+        )
+    )
+
+    private class MinChaptersFilter : Filter.Text("Min Chapters")
+    private class YearFromFilter : Filter.Text("Year From")
+    private class YearToFilter : Filter.Text("Year To")
+
+    private class GenreFilter : Filter.Group<CheckBoxFilter>(
+        "Genres (AND)",
+        listOf(
+            CheckBoxFilter("Action", "6"),
+            CheckBoxFilter("Adult", "87264"),
+            CheckBoxFilter("Adventure", "7"),
+            CheckBoxFilter("Boys Love", "8"),
+            CheckBoxFilter("Comedy", "9"),
+            CheckBoxFilter("Crime", "10"),
+            CheckBoxFilter("Drama", "11"),
+            CheckBoxFilter("Ecchi", "87265"),
+            CheckBoxFilter("Fantasy", "12"),
+            CheckBoxFilter("Girls Love", "13"),
+            CheckBoxFilter("Hentai", "87266"),
+            CheckBoxFilter("Historical", "14"),
+            CheckBoxFilter("Horror", "15"),
+            CheckBoxFilter("Isekai", "16"),
+            CheckBoxFilter("Magical Girls", "17"),
+            CheckBoxFilter("Mature", "87267"),
+            CheckBoxFilter("Mecha", "18"),
+            CheckBoxFilter("Medical", "19"),
+            CheckBoxFilter("Mystery", "20"),
+            CheckBoxFilter("Philosophical", "21"),
+            CheckBoxFilter("Psychological", "22"),
+            CheckBoxFilter("Romance", "23"),
+            CheckBoxFilter("Sci-Fi", "24"),
+            CheckBoxFilter("Slice of Life", "25"),
+            CheckBoxFilter("Smut", "87268"),
+            CheckBoxFilter("Sports", "26"),
+            CheckBoxFilter("Superhero", "27"),
+            CheckBoxFilter("Thriller", "28"),
+            CheckBoxFilter("Tragedy", "29"),
+            CheckBoxFilter("Wuxia", "30")
+        )
+    )
+
+    private class ThemeFilter : Filter.Group<CheckBoxFilter>(
+        "Themes (AND)",
+        listOf(
+            CheckBoxFilter("Aliens", "31"),
+            CheckBoxFilter("Animals", "32"),
+            CheckBoxFilter("Cooking", "33"),
+            CheckBoxFilter("Crossdressing", "34"),
+            CheckBoxFilter("Delinquents", "35"),
+            CheckBoxFilter("Demons", "36"),
+            CheckBoxFilter("Genderswap", "37"),
+            CheckBoxFilter("Ghosts", "38"),
+            CheckBoxFilter("Gyaru", "39"),
+            CheckBoxFilter("Harem", "40"),
+            CheckBoxFilter("Incest", "41"),
+            CheckBoxFilter("Loli", "42"),
+            CheckBoxFilter("Mafia", "43"),
+            CheckBoxFilter("Magic", "44"),
+            CheckBoxFilter("Martial Arts", "45"),
+            CheckBoxFilter("Military", "46"),
+            CheckBoxFilter("Monster Girls", "47"),
+            CheckBoxFilter("Monsters", "48"),
+            CheckBoxFilter("Music", "49"),
+            CheckBoxFilter("Ninja", "50"),
+            CheckBoxFilter("Office Workers", "51"),
+            CheckBoxFilter("Police", "52"),
+            CheckBoxFilter("Post-Apocalyptic", "53"),
+            CheckBoxFilter("Reincarnation", "54"),
+            CheckBoxFilter("Reverse Harem", "55"),
+            CheckBoxFilter("Samurai", "56"),
+            CheckBoxFilter("School Life", "57"),
+            CheckBoxFilter("Shota", "58"),
+            CheckBoxFilter("Supernatural", "59"),
+            CheckBoxFilter("Survival", "60"),
+            CheckBoxFilter("Time Travel", "61"),
+            CheckBoxFilter("Traditional Games", "62"),
+            CheckBoxFilter("Vampires", "63"),
+            CheckBoxFilter("Video Games", "64"),
+            CheckBoxFilter("Villainess", "65"),
+            CheckBoxFilter("Virtual Reality", "66"),
+            CheckBoxFilter("Zombies", "67")
         )
     )
 
