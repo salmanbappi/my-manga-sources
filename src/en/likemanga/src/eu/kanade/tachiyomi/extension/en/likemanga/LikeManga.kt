@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -21,11 +22,11 @@ class LikeManga : ParsedHttpSource() {
     override val supportsLatest = true
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
-        .add("Referer", baseUrl)
+        .add("Referer", "$baseUrl/")
 
     // Popular
     override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/hot/?page=$page", headers)
+        return GET("$baseUrl/search/?act=search&f[status]=all&f[sortby]=hot&pageNum=$page", headers)
     }
 
     override fun popularMangaSelector() = "div.video.position-relative"
@@ -39,11 +40,11 @@ class LikeManga : ParsedHttpSource() {
         return manga
     }
 
-    override fun popularMangaNextPageSelector() = "ul.pagination li.active + li"
+    override fun popularMangaNextPageSelector() = "li.page-item.active + li a"
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/search/lastest-chap/?page=$page", headers)
+        return GET("$baseUrl/search/?act=search&f[status]=all&f[sortby]=lastest-chap&pageNum=$page", headers)
     }
 
     override fun latestUpdatesSelector() = popularMangaSelector()
@@ -53,22 +54,34 @@ class LikeManga : ParsedHttpSource() {
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         if (query.isNotBlank()) {
-            val cleanQuery = query.trim().replace(" ", "%20")
-            return GET("$baseUrl/search/$cleanQuery/?page=$page", headers)
+            return GET("$baseUrl/search/$query/?pageNum=$page", headers)
         }
 
-        var url = "$baseUrl/genres/"
+        val url = "$baseUrl/search/".toHttpUrl().newBuilder()
+        url.addQueryParameter("act", "search")
+        url.addQueryParameter("pageNum", page.toString())
+
         filters.forEach { filter ->
-            if (filter is GenreFilter) {
-                url += filter.toUriPart()
+            when (filter) {
+                is GenreFilter -> {
+                    // Note: If genre is selected, the site usually uses /genres/path/
+                    // But if we want to combine with status/sort, we might need search params.
+                    // For simplicity, if genre is selected, we use the genre path.
+                    if (filter.state != 0) {
+                        return GET("$baseUrl/genres/${filter.toUriPart()}?page=$page", headers)
+                    }
+                }
+                is StatusFilter -> {
+                    url.addQueryParameter("f[status]", filter.toUriPart())
+                }
+                is SortFilter -> {
+                    url.addQueryParameter("f[sortby]", filter.toUriPart())
+                }
+                else -> {}
             }
         }
 
-        if (url == "$baseUrl/genres/") {
-            return latestUpdatesRequest(page)
-        }
-
-        return GET("$url?page=$page", headers)
+        return GET(url.build().toString(), headers)
     }
 
     override fun searchMangaSelector() = popularMangaSelector()
@@ -78,11 +91,13 @@ class LikeManga : ParsedHttpSource() {
     // Filters
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
-        GenreFilter()
+        GenreFilter(),
+        StatusFilter(),
+        SortFilter()
     )
 
     private class GenreFilter : Filter.Select<String>(
-        "Genre",
+        "Genre (Overrides Sort/Status)",
         VALS.map { it.first }.toTypedArray()
     ) {
         fun toUriPart() = VALS[state].second
@@ -158,6 +173,44 @@ class LikeManga : ParsedHttpSource() {
                 Pair("Yaoi", "yaoi/"),
                 Pair("Yuri", "yuri/"),
                 Pair("Zombies", "zombies/")
+            )
+        }
+    }
+
+    private class StatusFilter : Filter.Select<String>(
+        "Status",
+        VALS.map { it.first }.toTypedArray()
+    ) {
+        fun toUriPart() = VALS[state].second
+
+        companion object {
+            private val VALS = arrayOf(
+                Pair("All", "all"),
+                Pair("Complete", "complete"),
+                Pair("In process", "in-process"),
+                Pair("Pause", "pause")
+            )
+        }
+    }
+
+    private class SortFilter : Filter.Select<String>(
+        "Sort by",
+        VALS.map { it.first }.toTypedArray()
+    ) {
+        fun toUriPart() = VALS[state].second
+
+        companion object {
+            private val VALS = arrayOf(
+                Pair("Hot", "hot"),
+                Pair("Lastest update", "lastest-chap"),
+                Pair("New", "lastest-manga"),
+                Pair("Top all", "top-manga"),
+                Pair("Top month", "top-month"),
+                Pair("Top week", "top-week"),
+                Pair("Top day", "top-day"),
+                Pair("Follow", "follow"),
+                Pair("Comment", "comment"),
+                Pair("Num. Chapter", "num-chap")
             )
         }
     }
