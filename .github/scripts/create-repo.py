@@ -124,3 +124,7 @@ with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_fi
 # Save repo.json (Duplicate for cache bypassing)
 with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
     json.dump(index_min_data, repo_file, ensure_ascii=False, separators=(",", ":"))
+
+# Create .nojekyll to prevent 404s on some files
+with REPO_DIR.joinpath(".nojekyll").open("w") as f:
+    pass

@@ -26,6 +26,11 @@ for module in to_delete:
 shutil.copytree(src=LOCAL_REPO.joinpath("apk"), dst=REMOTE_REPO.joinpath("apk"), dirs_exist_ok = True)
 shutil.copytree(src=LOCAL_REPO.joinpath("icon"), dst=REMOTE_REPO.joinpath("icon"), dirs_exist_ok = True)
 
+# Copy .nojekyll
+nojekyll_src = LOCAL_REPO.joinpath(".nojekyll")
+if nojekyll_src.exists():
+    shutil.copy(nojekyll_src, REMOTE_REPO.joinpath(".nojekyll"))
+
 # Handle missing index.json (first run case)
 index_file_path = REMOTE_REPO.joinpath("index.json")
 if index_file_path.exists():
@@ -61,14 +66,16 @@ index.sort(key=lambda x: x["pkg"])
 
 # FIX PATHS FOR ALL ITEMS
 for item in index:
-    # Fix APK path
+    # Fix APK path: ensure no apk/ prefix if we want standard keiyoushi style
+    # My generated json has apk: "filename".
+    # If remote has apk: "apk/filename", we strip it.
     if "apk" in item:
         apk_name = item["apk"].split("/")[-1] # Get just the filename
-        item["apk"] = f"apk/{apk_name}" # Force relative apk/ prefix
+        item["apk"] = apk_name # Force filename only
     
     # Fix Icon path
     if "icon" in item:
-        # If it's a full URL, leave it (or convert? Let's leave absolute if it works)
+        # If it's a full URL, leave it
         # If it's relative, ensure it starts with icon/
         if not item["icon"].startswith("http"):
              icon_name = item["icon"].split("/")[-1]
