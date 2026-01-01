@@ -13,8 +13,11 @@ def get_file_sha256(file_path):
 
 def generate():
     repo_data = {}
-    apk_dir = "apk"
-    icon_dir = "icon"
+    
+    # Path relative to where script is run (which is root of source repo)
+    base_dir = "repo"
+    apk_dir = os.path.join(base_dir, "apk")
+    icon_dir = os.path.join(base_dir, "icon")
     
     # Ensure directories exist
     if not os.path.exists(apk_dir):
@@ -112,15 +115,15 @@ def generate():
     # Convert dict to sorted list
     final_data = sorted(repo_data.values(), key=lambda x: x["name"])
 
-    # Save index.min.json
-    with open("index.min.json", "w") as f:
+    # Save index.min.json in repo/
+    with open(os.path.join(base_dir, "index.min.json"), "w") as f:
         json.dump(final_data, f, separators=(',', ':'))
 
-    # Save index.json
-    with open("index.json", "w") as f:
+    # Save index.json in repo/
+    with open(os.path.join(base_dir, "index.json"), "w") as f:
         json.dump(final_data, f, indent=2)
         
-    # Save repo.json (Metadata for repo listing)
+    # Save repo.json (Metadata for repo listing) in repo/
     repo_info = {
         "meta": {
             "name": "SalmanBappi Manga Repo",
@@ -129,7 +132,7 @@ def generate():
             "signingKeyFingerprint": "" # Optional
         }
     }
-    with open("repo.json", "w") as f:
+    with open(os.path.join(base_dir, "repo.json"), "w") as f:
         json.dump(repo_info, f, indent=2)
 
 if __name__ == "__main__":
