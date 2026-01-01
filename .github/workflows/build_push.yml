@@ -25,60 +25,12 @@ env:
   IS_PR_CHECK: false
 
 jobs:
-  prepare:
-    name: Prepare job
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      latestCommitMessage: ${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}
-      matrix: ${{ steps.generate-matrices.outputs.matrix }}
-      delete: ${{ steps.generate-matrices.outputs.delete }}
-    steps:
-      - name: Checkout ${{ github.ref_name }} branch
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set env
-        id: set-env
-        run: |
-          echo "LATEST_COMMIT_MESSAGE<<{delimiter}
-          $(git log -1 --pretty=%B)
-          {delimiter}" >> $GITHUB_OUTPUT
-
-      - name: Set up Java
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
-        with:
-          java-version: 17
-          distribution: temurin
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
-        with:
-          cache-read-only: true
-
-      - name: Get last successful CI commit
-        uses: nrwl/nx-set-shas@3e9ad7370203c1e93d109be57f3b72eb0eb511b1 # v4.4.0
-        with:
-          main-branch-name: ${{ github.ref_name }}
-          fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904 # empty tree
-
-      - id: generate-matrices
-        name: Create output matrices
-        run: |
-          python ./.github/scripts/generate-build-matrices.py "$NX_BASE" Release
-
   build:
-    name: Build extensions (${{ matrix.chunk.number }})
-    needs: prepare
+    name: Build extensions
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
-    strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
-      - name: Checkout ${{ github.ref_name }} branch
+      - name: Checkout main branch
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
@@ -92,26 +44,26 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
         with:
-          cache-read-only: ${{ matrix.chunk.number > 1 }}
+          cache-read-only: false
 
       - name: Prepare signing key
         run: |
           echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
 
-      - name: Build extensions (${{ matrix.chunk.number }})
+      - name: Build extensions
         env:
-          MODULES: ${{ join(matrix.chunk.modules, ' ') }}
+          MODULES: :src:en:likemanga:assembleRelease
           ALIAS: ${{ secrets.ALIAS }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           ./gradlew $MODULES
 
-      - name: Upload APKs (${{ matrix.chunk.number }})
+      - name: Upload APKs
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: github.repository == 'salmanbappi/my-manga-sources'
         with:
-          name: "individual-apks-${{ matrix.chunk.number }}"
+          name: "individual-apks"
           path: "**/*.apk"
           retention-days: 1
 
@@ -120,7 +72,7 @@ jobs:
 
   publish:
     name: Publish extension repo
-    needs: [prepare, build]
+    needs: [build]
     if: github.repository == 'salmanbappi/my-manga-sources'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -147,10 +99,7 @@ jobs:
         run: |
           cd ${{ github.ref_name }}
           python ./.github/scripts/move-built-apks.py
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
-          java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
-          python ./.github/scripts/create-repo.py
+          python ./.github/scripts/generate_repo.py
 
       - name: Checkout repo branch
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -163,7 +112,7 @@ jobs:
 
       - name: Merge repo
         env:
-          DELETE: ${{ needs.prepare.outputs.delete }}
+          DELETE: '[]'
         run: |
           cd repo
           python ../${{ github.ref_name }}/.github/scripts/merge-repo.py "$DELETE" '${{ github.ref_name }}/repo'
@@ -171,14 +120,14 @@ jobs:
       - name: Deploy repo
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
         with:
-          message: "${{ needs.prepare.outputs.latestCommitMessage }}"
+          message: "Update extensions"
           cwd: "./repo"
           # committer_name: github-actions[bot]
           # committer_email: github-actions[bot]@users.noreply.github.com
 
       - name: Sync repo
         env:
-          COMMIT_MESSAGE: ${{ needs.prepare.outputs.latestCommitMessage }}
+          COMMIT_MESSAGE: "Update extensions"
         run: |
           cd repo
           git config user.name "Yūzōnō"
