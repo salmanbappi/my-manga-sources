@@ -45,6 +45,13 @@ index = [
 index.extend(local_index)
 index.sort(key=lambda x: x["pkg"])
 
+# Remove duplicates based on pkg name, keeping latest
+unique_index = {}
+for item in index:
+    unique_index[item['pkg']] = item
+index = sorted(unique_index.values(), key=lambda x: x["pkg"])
+
+
 with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_file:
     json.dump(index, index_file, ensure_ascii=False, indent=2)
 
@@ -55,7 +62,6 @@ for item in index:
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
     json.dump(index, index_min_file, ensure_ascii=False, separators=( ",", ":"))
 
-# Also write to repo.json
 with REMOTE_REPO.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
     json.dump(index, repo_file, ensure_ascii=False, separators=( ",", ":"))
 

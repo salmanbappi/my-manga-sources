@@ -67,14 +67,14 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": f"https://raw.githubusercontent.com/salmanbappi/salmanbappi-manga-extension/main/apk/{apk.name}",
+        "apk": apk.name,
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
         "size": os.path.getsize(apk),
         "sha256": get_file_sha256(apk),
-        "icon": f"https://raw.githubusercontent.com/salmanbappi/salmanbappi-manga-extension/main/icon/{package_name}.png"
+        "icon": f"https://salmanbappi.github.io/salmanbappi-manga-extension/icon/{package_name}.png"
     }
     min_data = {
         **common_data,
@@ -98,6 +98,10 @@ for apk in REPO_APK_DIR.iterdir():
 with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_file:
     json.dump(index_min_data, index_file, ensure_ascii=False, separators=(",", ":"))
 
-# Also write to repo.json (alternative entry point)
+# Write to index.json (standard)
+with REPO_DIR.joinpath("index.json").open("w", encoding="utf-8") as index_file:
+    json.dump(index_min_data, index_file, ensure_ascii=False, indent=2)
+
+# Also write to repo.json
 with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
     json.dump(index_min_data, repo_file, ensure_ascii=False, separators=(",", ":"))
