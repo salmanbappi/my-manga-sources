@@ -160,7 +160,7 @@ class Comix : HttpSource() {
         DemographicFilter(),
         Filter.Separator(),
         GenreFilter(),
-        ThemeFilter(),
+        ThemeFilter()
     )
 
     private class SortFilter : Filter.Select<String>(
@@ -176,8 +176,8 @@ class Comix : HttpSource() {
             "Most Views 1mo",
             "Most Views 3mo",
             "Total Views",
-            "Most Follows",
-        ),
+            "Most Follows"
+        )
     ) {
         fun toUriPart() = when (state) {
             0 -> "relevance:desc"
@@ -203,8 +203,8 @@ class Comix : HttpSource() {
             "Finished",
             "On Hiatus",
             "Discontinued",
-            "Not Yet Released",
-        ),
+            "Not Yet Released"
+        )
     ) {
         fun toUriPart() = when (state) {
             0 -> ""
@@ -224,8 +224,8 @@ class Comix : HttpSource() {
             "Manga",
             "Manhwa",
             "Manhua",
-            "Other",
-        ),
+            "Other"
+        )
     ) {
         fun toUriPart() = when (state) {
             0 -> ""
@@ -244,8 +244,8 @@ class Comix : HttpSource() {
             "Shounen",
             "Seinen",
             "Shoujo",
-            "Josei",
-        ),
+            "Josei"
+        )
     ) {
         fun toUriPart() = when (state) {
             0 -> ""
@@ -291,8 +291,8 @@ class Comix : HttpSource() {
             GenreCheckBox("Superhero", "27"),
             GenreCheckBox("Thriller", "28"),
             GenreCheckBox("Tragedy", "29"),
-            GenreCheckBox("Wuxia", "30"),
-        ),
+            GenreCheckBox("Wuxia", "30")
+        )
     )
 
     private class ThemeFilter : Filter.Group<GenreCheckBox>(
@@ -334,8 +334,8 @@ class Comix : HttpSource() {
             GenreCheckBox("Video Games", "64"),
             GenreCheckBox("Villainess", "65"),
             GenreCheckBox("Virtual Reality", "66"),
-            GenreCheckBox("Zombies", "67"),
-        ),
+            GenreCheckBox("Zombies", "67")
+        )
     )
 
     @Serializable
