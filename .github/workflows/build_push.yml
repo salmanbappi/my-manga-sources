@@ -151,7 +151,7 @@ jobs:
             - Added detailed filters.
             - Cleaned up repository index.
           files: |
-            repo/apk/*.apk
+            ${{ github.ref_name }}/repo/apk/*.apk
           draft: false
           prerelease: false
         env:

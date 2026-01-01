@@ -26,7 +26,7 @@ class LikeManga : ParsedHttpSource() {
 
     // Popular
     override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/search/?act=search&f[status]=all&f[sortby]=hot&pageNum=$page", headers)
+        return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=hot&pageNum=$page", headers)
     }
 
     override fun popularMangaSelector() = "div.video.position-relative"
@@ -44,7 +44,7 @@ class LikeManga : ParsedHttpSource() {
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/search/?act=search&f[status]=all&f[sortby]=lastest-chap&pageNum=$page", headers)
+        return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=lastest-chap&pageNum=$page", headers)
     }
 
     override fun latestUpdatesSelector() = popularMangaSelector()
@@ -54,31 +54,30 @@ class LikeManga : ParsedHttpSource() {
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
-        url.addQueryParameter("act", "search")
         url.addQueryParameter("pageNum", page.toString())
 
         if (query.isNotBlank()) {
+            url.addQueryParameter("act", "search")
             url.addQueryParameter("f[status]", "all")
             url.addQueryParameter("f[sortby]", "lastest-chap")
             url.addQueryParameter("f[keyword]", query.trim())
-            return GET(url.build().toString(), headers)
-        }
-
-        filters.forEach { filter ->
-            when (filter) {
-                is GenreFilter -> {
-                    if (filter.state != 0) {
-                        // Genre filter uses a different endpoint structure
-                        return GET("$baseUrl/genres/${filter.toUriPart()}?page=$page", headers)
+        } else {
+            url.addQueryParameter("act", "searchadvance")
+            filters.forEach { filter ->
+                when (filter) {
+                    is GenreGroup -> {
+                        filter.state.filter { it.state }.forEach {
+                            url.addQueryParameter("f[genres][]", it.value)
+                        }
                     }
+                    is StatusFilter -> {
+                        url.addQueryParameter("f[status]", filter.toUriPart())
+                    }
+                    is SortFilter -> {
+                        url.addQueryParameter("f[sortby]", filter.toUriPart())
+                    }
+                    else -> {}
                 }
-                is StatusFilter -> {
-                    url.addQueryParameter("f[status]", filter.toUriPart())
-                }
-                is SortFilter -> {
-                    url.addQueryParameter("f[sortby]", filter.toUriPart())
-                }
-                else -> {}
             }
         }
 
@@ -92,91 +91,88 @@ class LikeManga : ParsedHttpSource() {
     // Filters
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
-        GenreFilter(),
         StatusFilter(),
-        SortFilter()
+        SortFilter(),
+        Filter.Separator(),
+        GenreGroup()
     )
 
-    private class GenreFilter : Filter.Select<String>(
-        "Genre (Overrides Sort/Status)",
-        VALS.map { it.first }.toTypedArray()
-    ) {
-        fun toUriPart() = VALS[state].second
-
+    private class GenreGroup : Filter.Group<GenreCheckBox>("Genres", VALS.map { GenreCheckBox(it.first, it.second) }) {
         companion object {
             private val VALS = arrayOf(
-                Pair("All", ""),
-                Pair("Action", "action/"),
-                Pair("Adult", "adult/"),
-                Pair("Adaptation", "adaptation/"),
-                Pair("Adventure", "adventure/"),
-                Pair("Anime", "anime/"),
-                Pair("Comedy", "comedy/"),
-                Pair("Completed", "completed/"),
-                Pair("Cooking", "cooking/"),
-                Pair("Crime", "crime/"),
-                Pair("Crossdressin", "crossdressin/"),
-                Pair("Delinquents", "delinquents/"),
-                Pair("Demons", "demons/"),
-                Pair("Detective", "detective/"),
-                Pair("Drama", "drama/"),
-                Pair("Ecchi", "ecchi/"),
-                Pair("Fantasy", "fantasy/"),
-                Pair("Game", "game/"),
-                Pair("Ghosts", "ghosts/"),
-                Pair("Harem", "harem/"),
-                Pair("Historical", "historical/"),
-                Pair("Horror", "horror/"),
-                Pair("Isekai", "isekai/"),
-                Pair("Josei", "josei/"),
-                Pair("Magic", "magic/"),
-                Pair("Magical", "magical/"),
-                Pair("Manhua", "manhua/"),
-                Pair("Manhwa", "manhwa/"),
-                Pair("Martial Arts", "martial-arts/"),
-                Pair("Mature", "mature/"),
-                Pair("Mecha", "mecha/"),
-                Pair("Medical", "medical/"),
-                Pair("Military", "military/"),
-                Pair("Moder", "moder/"),
-                Pair("Monsters", "monsters/"),
-                Pair("Music", "music/"),
-                Pair("Mystery", "mystery/"),
-                Pair("Office Workers", "office-workers/"),
-                Pair("One shot", "one-shot/"),
-                Pair("Philosophical", "philosophical/"),
-                Pair("Police", "police/"),
-                Pair("Reincarnation", "reincarnation/"),
-                Pair("Reverse", "reverse/"),
-                Pair("Reverse harem", "reverse-harem/"),
-                Pair("Romance", "romance/"),
-                Pair("Royal family", "royal-family/"),
-                Pair("School Life", "school-life/"),
-                Pair("Sci-fi", "scifi/"),
-                Pair("Seinen", "seinen/"),
-                Pair("Shoujo", "shoujo/"),
-                Pair("Smut", "smut/"),
-                Pair("Shoujo Ai", "shoujo-ai/"),
-                Pair("Shounen", "shounen/"),
-                Pair("Shounen Ai", "shounen-ai/"),
-                Pair("Slice of Life", "slice-of-life/"),
-                Pair("Sports", "sports/"),
-                Pair("Super power", "super-power/"),
-                Pair("Superhero", "superhero/"),
-                Pair("Supernatural", "supernatural/"),
-                Pair("Survival", "survival/"),
-                Pair("Thriller", "thriller/"),
-                Pair("Time Travel", "time-travel/"),
-                Pair("Tragedy", "tragedy/"),
-                Pair("Vampire", "vampire/"),
-                Pair("Villainess", "villainess/"),
-                Pair("Webtoons", "webtoons/"),
-                Pair("Yaoi", "yaoi/"),
-                Pair("Yuri", "yuri/"),
-                Pair("Zombies", "zombies/")
+                Pair("Action", "action"),
+                Pair("Adult", "adult"),
+                Pair("Adaptation", "adaptation"),
+                Pair("Adventure", "adventure"),
+                Pair("Anime", "anime"),
+                Pair("Comedy", "comedy"),
+                Pair("Completed", "completed"),
+                Pair("Cooking", "cooking"),
+                Pair("Crime", "crime"),
+                Pair("Crossdressin", "crossdressin"),
+                Pair("Delinquents", "delinquents"),
+                Pair("Demons", "demons"),
+                Pair("Detective", "detective"),
+                Pair("Drama", "drama"),
+                Pair("Ecchi", "ecchi"),
+                Pair("Fantasy", "fantasy"),
+                Pair("Game", "game"),
+                Pair("Ghosts", "ghosts"),
+                Pair("Harem", "harem"),
+                Pair("Historical", "historical"),
+                Pair("Horror", "horror"),
+                Pair("Isekai", "isekai"),
+                Pair("Josei", "josei"),
+                Pair("Magic", "magic"),
+                Pair("Magical", "magical"),
+                Pair("Manhua", "manhua"),
+                Pair("Manhwa", "manhwa"),
+                Pair("Martial Arts", "martial-arts"),
+                Pair("Mature", "mature"),
+                Pair("Mecha", "mecha"),
+                Pair("Medical", "medical"),
+                Pair("Military", "military"),
+                Pair("Moder", "moder"),
+                Pair("Monsters", "monsters"),
+                Pair("Music", "music"),
+                Pair("Mystery", "mystery"),
+                Pair("Office Workers", "office-workers"),
+                Pair("One shot", "one-shot"),
+                Pair("Philosophical", "philosophical"),
+                Pair("Police", "police"),
+                Pair("Reincarnation", "reincarnation"),
+                Pair("Reverse", "reverse"),
+                Pair("Reverse harem", "reverse-harem"),
+                Pair("Romance", "romance"),
+                Pair("Royal family", "royal-family"),
+                Pair("School Life", "school-life"),
+                Pair("Sci-fi", "scifi"),
+                Pair("Seinen", "seinen"),
+                Pair("Shoujo", "shoujo"),
+                Pair("Smut", "smut"),
+                Pair("Shoujo Ai", "shoujo-ai"),
+                Pair("Shounen", "shounen"),
+                Pair("Shounen Ai", "shounen-ai"),
+                Pair("Slice of Life", "slice-of-life"),
+                Pair("Sports", "sports"),
+                Pair("Super power", "super-power"),
+                Pair("Superhero", "superhero"),
+                Pair("Supernatural", "supernatural"),
+                Pair("Survival", "survival"),
+                Pair("Thriller", "thriller"),
+                Pair("Time Travel", "time-travel"),
+                Pair("Tragedy", "tragedy"),
+                Pair("Vampire", "vampire"),
+                Pair("Villainess", "villainess"),
+                Pair("Webtoons", "webtoons"),
+                Pair("Yaoi", "yaoi"),
+                Pair("Yuri", "yuri"),
+                Pair("Zombies", "zombies")
             )
         }
     }
+
+    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
 
     private class StatusFilter : Filter.Select<String>(
         "Status",
@@ -191,15 +187,6 @@ class LikeManga : ParsedHttpSource() {
                 Pair("In process", "in-process"),
                 Pair("Pause", "pause")
             )
-        }
-    }
-
-    private class HeaderInterceptor : okhttp3.Interceptor {
-        override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
-            val request = chain.request().newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .build()
-            return chain.proceed(request)
         }
     }
 
