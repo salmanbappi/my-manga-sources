@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload APKs (${{ matrix.chunk.number }})
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: github.repository == 'yuzono/tachiyomi-extensions'
+        if: github.repository == 'salmanbappi/my-manga-sources'
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
@@ -121,7 +121,7 @@ jobs:
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: github.repository == 'yuzono/tachiyomi-extensions'
+    if: github.repository == 'salmanbappi/my-manga-sources'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -155,9 +155,9 @@ jobs:
       - name: Checkout repo branch
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
-          repository: yuzono/tachiyomi-repo
+          repository: salmanbappi/salmanbappi-manga-extension
           token: ${{ secrets.BOT_PAT }}
-          ref: repo
+          ref: main
           path: repo
           persist-credentials: true
 
@@ -183,13 +183,13 @@ jobs:
           cd repo
           git config user.name "Yūzōnō"
           git config user.email "yuzono@users.noreply.github.com"
-          git remote set-url origin https://github.com/yuzono/manga-repo.git
+          git remote set-url origin https://github.com/salmanbappi/salmanbappi-manga-extension.git
           git fetch origin
-          git reset origin/repo
+          git reset origin/main
           git add -A
           git commit --amend -m "$COMMIT_MESSAGE" --no-sign --allow-empty || echo "No changes to commit"
-          git push origin HEAD:repo --force
+          git push origin HEAD:main --force
 
       - name: Purge cached index on jsDelivr
         run: |
-          curl https://purge.jsdelivr.net/gh/yuzono/manga-repo@repo/index.min.json
+          curl https://purge.jsdelivr.net/gh/salmanbappi/salmanbappi-manga-extension@main/index.min.json
