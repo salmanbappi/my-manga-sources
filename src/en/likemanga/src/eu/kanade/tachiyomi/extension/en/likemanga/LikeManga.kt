@@ -78,7 +78,7 @@ class LikeManga : ParsedHttpSource() {
     // Filters
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
-        GenreFilter(),
+        GenreFilter()
     )
 
     private class GenreFilter : Filter.Select<String>(
@@ -152,8 +152,8 @@ class LikeManga : ParsedHttpSource() {
             Pair("Webtoons", "webtoons/"),
             Pair("Yaoi", "yaoi/"),
             Pair("Yuri", "yuri/"),
-            Pair("Zombies", "zombies/"),
-        ),
+            Pair("Zombies", "zombies/")
+        )
     ) {
         fun toUriPart() = values[state].second
     }
