@@ -9,6 +9,10 @@ LOCAL_REPO: Path = REMOTE_REPO.parent.joinpath(sys.argv[2])
 
 to_delete: list[str] = json.loads(sys.argv[1])
 
+# Ensure apk and icon directories exist in remote repo
+REMOTE_REPO.joinpath("apk").mkdir(exist_ok=True)
+REMOTE_REPO.joinpath("icon").mkdir(exist_ok=True)
+
 for module in to_delete:
     apk_name = f"tachiyomi-{module}-v*.*.*.apk"
     icon_name = f"eu.kanade.tachiyomi.extension.{module}.png"
@@ -22,8 +26,13 @@ for module in to_delete:
 shutil.copytree(src=LOCAL_REPO.joinpath("apk"), dst=REMOTE_REPO.joinpath("apk"), dirs_exist_ok = True)
 shutil.copytree(src=LOCAL_REPO.joinpath("icon"), dst=REMOTE_REPO.joinpath("icon"), dirs_exist_ok = True)
 
-with REMOTE_REPO.joinpath("index.json").open() as remote_index_file:
-    remote_index = json.load(remote_index_file)
+# Handle missing index.json (first run case)
+index_file_path = REMOTE_REPO.joinpath("index.json")
+if index_file_path.exists():
+    with index_file_path.open() as remote_index_file:
+        remote_index = json.load(remote_index_file)
+else:
+    remote_index = []
 
 with LOCAL_REPO.joinpath("index.min.json").open() as local_index_file:
     local_index = json.load(local_index_file)
@@ -44,7 +53,7 @@ for item in index:
         source.pop("versionId", None)
 
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
-    json.dump(index, index_min_file, ensure_ascii=False, separators=(",", ":"))
+    json.dump(index, index_min_file, ensure_ascii=False, separators=( ",", ":"))
 
 with REMOTE_REPO.joinpath("index.html").open("w", encoding="utf-8") as index_html_file:
     index_html_file.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>apks</title>\n</head>\n<body>\n<pre>\n')
