@@ -100,14 +100,14 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": f"apk/{apk.name}",
+        "apk": apk.name,
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
-        "icon": f"icon/{package_name}.png",
         "size": os.path.getsize(apk),
-        "sha256": get_file_sha256(apk)
+        "sha256": get_file_sha256(apk),
+        "icon": f"icon/{package_name}.png"
     }
     
     min_data = {
