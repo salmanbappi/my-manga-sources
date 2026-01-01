@@ -55,6 +55,10 @@ for item in index:
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
     json.dump(index, index_min_file, ensure_ascii=False, separators=( ",", ":"))
 
+# Also write to repo.json
+with REMOTE_REPO.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
+    json.dump(index, repo_file, ensure_ascii=False, separators=( ",", ":"))
+
 with REMOTE_REPO.joinpath("index.html").open("w", encoding="utf-8") as index_html_file:
     index_html_file.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>apks</title>\n</head>\n<body>\n<pre>\n')
     for entry in index:
