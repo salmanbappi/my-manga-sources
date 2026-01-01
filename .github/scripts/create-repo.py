@@ -2,8 +2,13 @@ import json
 import os
 import re
 import subprocess
+import hashlib
 from pathlib import Path
 from zipfile import ZipFile
+
+def get_file_sha256(file_path):
+    with open(file_path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 PACKAGE_NAME_REGEX = re.compile(r"package: name='([^']+)'")
 VERSION_CODE_REGEX = re.compile(r"versionCode='([^']+)'")
@@ -95,17 +100,19 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": f"apk/{apk.name}", # CORRECT RELATIVE PATH
+        "apk": f"apk/{apk.name}",
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
-        "icon": f"icon/{package_name}.png"
+        "icon": f"icon/{package_name}.png",
+        "size": os.path.getsize(apk),
+        "sha256": get_file_sha256(apk)
     }
     
     min_data = {
         **common_data,
-        "sources": sources, # Include sources!
+        "sources": sources,
     }
 
     index_min_data.append(min_data)
