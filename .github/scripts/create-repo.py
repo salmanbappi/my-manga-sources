@@ -117,14 +117,22 @@ for apk in REPO_APK_DIR.iterdir():
 
     index_min_data.append(min_data)
 
-# Save index.min.json
+# Save index.min.json (The actual list of extensions)
 with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_file:
     json.dump(index_min_data, index_file, ensure_ascii=False, separators=(",", ":"))
 
-# Save repo.json (Duplicate for cache bypassing)
-with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
-    json.dump(index_min_data, repo_file, ensure_ascii=False, separators=(",", ":"))
+# Save index.json (Pretty print version)
+with REPO_DIR.joinpath("index.json").open("w", encoding="utf-8") as index_file:
+    json.dump(index_min_data, index_file, ensure_ascii=False, indent=2)
 
-# Create .nojekyll to prevent 404s on some files
-with REPO_DIR.joinpath(".nojekyll").open("w") as f:
-    pass
+# Save repo.json (METADATA - This was the bug!)
+repo_info = {
+    "meta": {
+        "name": "SalmanBappi Manga Repo",
+        "shortName": "SBManga",
+        "website": "https://salmanbappi.github.io/salmanbappi-manga-extension/",
+        "signingKeyFingerprint": "" 
+    }
+}
+with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
+    json.dump(repo_info, repo_file, indent=2)

@@ -49,13 +49,13 @@ remote_index = [
     if not any(item["pkg"].endswith(f".{module}") for module in to_delete)
 ]
 
-# Explicitly remove "Example Extension" if present (since we deleted source without triggering delete logic)
+# Explicitly remove "Example Extension" if present
 remote_index = [
     item for item in remote_index 
     if "example" not in item["pkg"]
 ]
 
-# Merge logic: Create a dict by pkg name to override old with new
+# Merge logic
 merged_map = {item['pkg']: item for item in remote_index}
 for item in local_index:
     merged_map[item['pkg']] = item
@@ -66,22 +66,15 @@ index.sort(key=lambda x: x["pkg"])
 
 # FIX PATHS FOR ALL ITEMS
 for item in index:
-    # Fix APK path: ensure no apk/ prefix if we want standard keiyoushi style
-    # My generated json has apk: "filename".
-    # If remote has apk: "apk/filename", we strip it.
     if "apk" in item:
-        apk_name = item["apk"].split("/")[-1] # Get just the filename
-        item["apk"] = apk_name # Force filename only
+        apk_name = item["apk"].split("/")[-1]
+        item["apk"] = apk_name
     
-    # Fix Icon path
     if "icon" in item:
-        # If it's a full URL, leave it
-        # If it's relative, ensure it starts with icon/
         if not item["icon"].startswith("http"):
              icon_name = item["icon"].split("/")[-1]
              item["icon"] = f"icon/{icon_name}"
 
-    # Cleanup sources versionId
     if "sources" in item:
         for source in item["sources"]:
             source.pop("versionId", None)
@@ -92,8 +85,17 @@ with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_fil
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
     json.dump(index, index_min_file, ensure_ascii=False, separators=( ",", ":"))
 
+# CORRECT REPO.JSON GENERATION (Metadata)
+repo_info = {
+    "meta": {
+        "name": "SalmanBappi Manga Repo",
+        "shortName": "SBManga",
+        "website": "https://salmanbappi.github.io/salmanbappi-manga-extension/",
+        "signingKeyFingerprint": "" 
+    }
+}
 with REMOTE_REPO.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
-    json.dump(index, repo_file, ensure_ascii=False, separators=( ",", ":"))
+    json.dump(repo_info, repo_file, indent=2)
 
 with REMOTE_REPO.joinpath("index.html").open("w", encoding="utf-8") as index_html_file:
     index_html_file.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>apks</title>\n</head>\n<body>\n<pre>\n')
