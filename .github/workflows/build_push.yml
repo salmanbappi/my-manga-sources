@@ -142,9 +142,16 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.3-${{ github.run_number }}
-          name: Release v1.4.3 (Build ${{ github.run_number }})
-          files: ~/apk-artifacts/**/*.apk
+          tag_name: Build-${{ github.run_number }}
+          name: Build ${{ github.run_number }} - LikeManga v1.4.5
+          body: |
+            ### Automated Build
+            - Improved search logic for LikeManga.
+            - Fixed 404/403 errors on browsing.
+            - Added detailed filters.
+            - Cleaned up repository index.
+          files: |
+            repo/apk/*.apk
           draft: false
           prerelease: false
         env:

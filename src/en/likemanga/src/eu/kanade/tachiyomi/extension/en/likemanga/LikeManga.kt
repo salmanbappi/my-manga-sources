@@ -53,21 +53,22 @@ class LikeManga : ParsedHttpSource() {
 
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        if (query.isNotBlank()) {
-            return GET("$baseUrl/search/$query/?pageNum=$page", headers)
-        }
-
-        val url = "$baseUrl/search/".toHttpUrl().newBuilder()
+        val url = baseUrl.toHttpUrl().newBuilder()
         url.addQueryParameter("act", "search")
         url.addQueryParameter("pageNum", page.toString())
+
+        if (query.isNotBlank()) {
+            url.addQueryParameter("f[status]", "all")
+            url.addQueryParameter("f[sortby]", "lastest-chap")
+            url.addQueryParameter("f[keyword]", query.trim())
+            return GET(url.build().toString(), headers)
+        }
 
         filters.forEach { filter ->
             when (filter) {
                 is GenreFilter -> {
-                    // Note: If genre is selected, the site usually uses /genres/path/
-                    // But if we want to combine with status/sort, we might need search params.
-                    // For simplicity, if genre is selected, we use the genre path.
                     if (filter.state != 0) {
+                        // Genre filter uses a different endpoint structure
                         return GET("$baseUrl/genres/${filter.toUriPart()}?page=$page", headers)
                     }
                 }
@@ -190,6 +191,15 @@ class LikeManga : ParsedHttpSource() {
                 Pair("In process", "in-process"),
                 Pair("Pause", "pause")
             )
+        }
+    }
+
+    private class HeaderInterceptor : okhttp3.Interceptor {
+        override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
+            val request = chain.request().newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .build()
+            return chain.proceed(request)
         }
     }
 
