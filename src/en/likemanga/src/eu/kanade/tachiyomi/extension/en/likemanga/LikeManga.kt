@@ -9,7 +9,9 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
@@ -20,6 +22,8 @@ class LikeManga : ParsedHttpSource() {
     override val baseUrl = "https://likemanga.ink"
     override val lang = "en"
     override val supportsLatest = true
+
+    override val client: OkHttpClient = network.cloudflareClient
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -87,6 +91,94 @@ class LikeManga : ParsedHttpSource() {
     override fun searchMangaSelector() = popularMangaSelector()
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+
+    // Details
+    override fun mangaDetailsParse(document: Document): SManga {
+        val manga = SManga.create()
+        manga.title = document.selectFirst("h1.title-detail")?.text() ?: "Unknown"
+        manga.author = document.select("li.author p.col-8").text()
+        manga.description = document.select("div#summary_shortened, div.detail-content p").text()
+        manga.genre = document.select("li.kind p.col-8 a").joinToString { it.text() }
+
+        val statusText = document.select("li.status p.col-8").text()
+        manga.status = when {
+            statusText.contains("Completed", true) -> SManga.COMPLETED
+            statusText.contains("Ongoing", true) -> SManga.ONGOING
+            else -> SManga.UNKNOWN
+        }
+
+        manga.thumbnail_url = document.selectFirst("div.col-image img")?.attr("abs:src")
+        return manga
+    }
+
+    // Chapters - The site loads chapters via AJAX and paginates them
+    override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
+
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val document = response.asJsoup()
+        val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
+            ?: throw Exception("Could not find manga ID")
+
+        val chapters = mutableListOf<SChapter>()
+        var page = 1
+        var hasNextPage = true
+
+        while (hasNextPage) {
+            val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&mangaId=$mangaId&pageNum=$page"
+            val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
+            val ajaxHtml = ajaxResponse.body.string()
+            val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
+            
+            val elements = ajaxDoc.select(chapterListSelector())
+            if (elements.isEmpty()) {
+                hasNextPage = false
+            } else {
+                elements.forEach {
+                    chapters.add(chapterFromElement(it))
+                }
+                page++
+            }
+            // Safety break to prevent infinite loops
+            if (page > 100) break 
+        }
+
+        return chapters
+    }
+
+    override fun chapterListSelector() = "li.wp-manga-chapter"
+
+    override fun chapterFromElement(element: Element): SChapter {
+        val chapter = SChapter.create()
+        val linkElement = element.selectFirst("a")!!
+        chapter.setUrlWithoutDomain(linkElement.attr("href"))
+        chapter.name = linkElement.text()
+        chapter.date_upload = parseDate(element.select("span.chapter-release-date").text())
+        return chapter
+    }
+
+    private fun parseDate(dateStr: String): Long {
+        return try {
+            if (dateStr.contains("New", true)) {
+                System.currentTimeMillis()
+            } else {
+                val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
+                dateFormat.parse(dateStr)?.time ?: 0L
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    // Pages
+    override fun pageListParse(document: Document): List<Page> {
+        val pages = mutableListOf<Page>()
+        document.select("div.page-chapter img").forEachIndexed { index, img ->
+            pages.add(Page(index, "", img.attr("abs:src")))
+        }
+        return pages
+    }
+
+    override fun imageUrlParse(document: Document) = ""
 
     // Filters
     override fun getFilterList() = FilterList(
@@ -211,59 +303,4 @@ class LikeManga : ParsedHttpSource() {
             )
         }
     }
-
-    // Details
-    override fun mangaDetailsParse(document: Document): SManga {
-        val manga = SManga.create()
-        manga.title = document.selectFirst("h1.title-detail")?.text() ?: "Unknown"
-        manga.author = document.select("li.author p.col-8").text()
-        manga.description = document.select("div#summary_shortened, div.detail-content p").text()
-        manga.genre = document.select("li.kind p.col-8 a").joinToString { it.text() }
-
-        val statusText = document.select("li.status p.col-8").text()
-        manga.status = when {
-            statusText.contains("Completed", true) -> SManga.COMPLETED
-            statusText.contains("Ongoing", true) -> SManga.ONGOING
-            else -> SManga.UNKNOWN
-        }
-
-        manga.thumbnail_url = document.selectFirst("div.col-image img")?.attr("abs:src")
-        return manga
-    }
-
-    // Chapters
-    override fun chapterListSelector() = "ul#list_chapter_id_detail li.wp-manga-chapter"
-
-    override fun chapterFromElement(element: Element): SChapter {
-        val chapter = SChapter.create()
-        val linkElement = element.selectFirst("a")!!
-        chapter.setUrlWithoutDomain(linkElement.attr("href"))
-        chapter.name = linkElement.text()
-        chapter.date_upload = parseDate(element.select("span.chapter-release-date").text())
-        return chapter
-    }
-
-    private fun parseDate(dateStr: String): Long {
-        return try {
-            if (dateStr.contains("New", true)) {
-                System.currentTimeMillis()
-            } else {
-                val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
-                dateFormat.parse(dateStr)?.time ?: 0L
-            }
-        } catch (e: Exception) {
-            0L
-        }
-    }
-
-    // Pages
-    override fun pageListParse(document: Document): List<Page> {
-        val pages = mutableListOf<Page>()
-        document.select("div.page-chapter img").forEachIndexed { index, img ->
-            pages.add(Page(index, "", img.attr("abs:src")))
-        }
-        return pages
-    }
-
-    override fun imageUrlParse(document: Document) = ""
 }
