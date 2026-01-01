@@ -143,15 +143,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: Build-${{ github.run_number }}
-          name: Build ${{ github.run_number }} - LikeManga v1.4.5
+          name: Build ${{ github.run_number }} - LikeManga v1.4.10
           body: |
             ### Automated Build
-            - Improved search logic for LikeManga.
-            - Fixed 404/403 errors on browsing.
-            - Added detailed filters.
-            - Cleaned up repository index.
+            - Implemented AJAX chapter loading (fixes 100+ chapters issue).
+            - Refined search logic.
+            - Updated metadata.
           files: |
-            **/*.apk
+            repo/apk/*.apk
           draft: false
           prerelease: false
         env:
