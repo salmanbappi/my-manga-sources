@@ -52,26 +52,20 @@ class LikeManga : ParsedHttpSource() {
 
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        // If there is a query, use the search endpoint
         if (query.isNotBlank()) {
             val cleanQuery = query.trim().replace(" ", "%20")
             return GET("$baseUrl/search/$cleanQuery/?page=$page", headers)
         }
 
-        // If no query but filters, try to use the genre filter
-        // Note: This site seems to use path-based routing for genres e.g. /genres/action/
-        // We will loop through filters to find the genre filter
         var url = "$baseUrl/genres/"
         filters.forEach { filter ->
             if (filter is GenreFilter) {
                 url += filter.toUriPart()
             }
         }
-        
-        // If URL is just /genres/, it shows all. 
+
         if (url == "$baseUrl/genres/") {
-             // Fallback to latest if no specific filter selected (or "All" selected)
-             return latestUpdatesRequest(page)
+            return latestUpdatesRequest(page)
         }
 
         return GET("$url?page=$page", headers)
@@ -84,80 +78,83 @@ class LikeManga : ParsedHttpSource() {
     // Filters
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
-        GenreFilter()
+        GenreFilter(),
     )
 
-    private class GenreFilter : Filter.Select<String>("Genre", arrayOf(
-        Pair("All", ""),
-        Pair("Action", "action/"),
-        Pair("Adult", "adult/"),
-        Pair("Adaptation", "adaptation/"),
-        Pair("Adventure", "adventure/"),
-        Pair("Anime", "anime/"),
-        Pair("Comedy", "comedy/"),
-        Pair("Completed", "completed/"),
-        Pair("Cooking", "cooking/"),
-        Pair("Crime", "crime/"),
-        Pair("Crossdressin", "crossdressin/"),
-        Pair("Delinquents", "delinquents/"),
-        Pair("Demons", "demons/"),
-        Pair("Detective", "detective/"),
-        Pair("Drama", "drama/"),
-        Pair("Ecchi", "ecchi/"),
-        Pair("Fantasy", "fantasy/"),
-        Pair("Game", "game/"),
-        Pair("Ghosts", "ghosts/"),
-        Pair("Harem", "harem/"),
-        Pair("Historical", "historical/"),
-        Pair("Horror", "horror/"),
-        Pair("Isekai", "isekai/"),
-        Pair("Josei", "josei/"),
-        Pair("Magic", "magic/"),
-        Pair("Magical", "magical/"),
-        Pair("Manhua", "manhua/"),
-        Pair("Manhwa", "manhwa/"),
-        Pair("Martial Arts", "martial-arts/"),
-        Pair("Mature", "mature/"),
-        Pair("Mecha", "mecha/"),
-        Pair("Medical", "medical/"),
-        Pair("Military", "military/"),
-        Pair("Moder", "moder/"),
-        Pair("Monsters", "monsters/"),
-        Pair("Music", "music/"),
-        Pair("Mystery", "mystery/"),
-        Pair("Office Workers", "office-workers/"),
-        Pair("One shot", "one-shot/"),
-        Pair("Philosophical", "philosophical/"),
-        Pair("Police", "police/"),
-        Pair("Reincarnation", "reincarnation/"),
-        Pair("Reverse", "reverse/"),
-        Pair("Reverse harem", "reverse-harem/"),
-        Pair("Romance", "romance/"),
-        Pair("Royal family", "royal-family/"),
-        Pair("School Life", "school-life/"),
-        Pair("Sci-fi", "scifi/"),
-        Pair("Seinen", "seinen/"),
-        Pair("Shoujo", "shoujo/"),
-        Pair("Smut", "smut/"),
-        Pair("Shoujo Ai", "shoujo-ai/"),
-        Pair("Shounen", "shounen/"),
-        Pair("Shounen Ai", "shounen-ai/"),
-        Pair("Slice of Life", "slice-of-life/"),
-        Pair("Sports", "sports/"),
-        Pair("Super power", "super-power/"),
-        Pair("Superhero", "superhero/"),
-        Pair("Supernatural", "supernatural/"),
-        Pair("Survival", "survival/"),
-        Pair("Thriller", "thriller/"),
-        Pair("Time Travel", "time-travel/"),
-        Pair("Tragedy", "tragedy/"),
-        Pair("Vampire", "vampire/"),
-        Pair("Villainess", "villainess/"),
-        Pair("Webtoons", "webtoons/"),
-        Pair("Yaoi", "yaoi/"),
-        Pair("Yuri", "yuri/"),
-        Pair("Zombies", "zombies/")
-    )) {
+    private class GenreFilter : Filter.Select<String>(
+        "Genre",
+        arrayOf(
+            Pair("All", ""),
+            Pair("Action", "action/"),
+            Pair("Adult", "adult/"),
+            Pair("Adaptation", "adaptation/"),
+            Pair("Adventure", "adventure/"),
+            Pair("Anime", "anime/"),
+            Pair("Comedy", "comedy/"),
+            Pair("Completed", "completed/"),
+            Pair("Cooking", "cooking/"),
+            Pair("Crime", "crime/"),
+            Pair("Crossdressin", "crossdressin/"),
+            Pair("Delinquents", "delinquents/"),
+            Pair("Demons", "demons/"),
+            Pair("Detective", "detective/"),
+            Pair("Drama", "drama/"),
+            Pair("Ecchi", "ecchi/"),
+            Pair("Fantasy", "fantasy/"),
+            Pair("Game", "game/"),
+            Pair("Ghosts", "ghosts/"),
+            Pair("Harem", "harem/"),
+            Pair("Historical", "historical/"),
+            Pair("Horror", "horror/"),
+            Pair("Isekai", "isekai/"),
+            Pair("Josei", "josei/"),
+            Pair("Magic", "magic/"),
+            Pair("Magical", "magical/"),
+            Pair("Manhua", "manhua/"),
+            Pair("Manhwa", "manhwa/"),
+            Pair("Martial Arts", "martial-arts/"),
+            Pair("Mature", "mature/"),
+            Pair("Mecha", "mecha/"),
+            Pair("Medical", "medical/"),
+            Pair("Military", "military/"),
+            Pair("Moder", "moder/"),
+            Pair("Monsters", "monsters/"),
+            Pair("Music", "music/"),
+            Pair("Mystery", "mystery/"),
+            Pair("Office Workers", "office-workers/"),
+            Pair("One shot", "one-shot/"),
+            Pair("Philosophical", "philosophical/"),
+            Pair("Police", "police/"),
+            Pair("Reincarnation", "reincarnation/"),
+            Pair("Reverse", "reverse/"),
+            Pair("Reverse harem", "reverse-harem/"),
+            Pair("Romance", "romance/"),
+            Pair("Royal family", "royal-family/"),
+            Pair("School Life", "school-life/"),
+            Pair("Sci-fi", "scifi/"),
+            Pair("Seinen", "seinen/"),
+            Pair("Shoujo", "shoujo/"),
+            Pair("Smut", "smut/"),
+            Pair("Shoujo Ai", "shoujo-ai/"),
+            Pair("Shounen", "shounen/"),
+            Pair("Shounen Ai", "shounen-ai/"),
+            Pair("Slice of Life", "slice-of-life/"),
+            Pair("Sports", "sports/"),
+            Pair("Super power", "super-power/"),
+            Pair("Superhero", "superhero/"),
+            Pair("Supernatural", "supernatural/"),
+            Pair("Survival", "survival/"),
+            Pair("Thriller", "thriller/"),
+            Pair("Time Travel", "time-travel/"),
+            Pair("Tragedy", "tragedy/"),
+            Pair("Vampire", "vampire/"),
+            Pair("Villainess", "villainess/"),
+            Pair("Webtoons", "webtoons/"),
+            Pair("Yaoi", "yaoi/"),
+            Pair("Yuri", "yuri/"),
+            Pair("Zombies", "zombies/"),
+        ),
+    ) {
         fun toUriPart() = values[state].second
     }
 
