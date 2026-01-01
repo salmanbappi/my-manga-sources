@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.en.comix
 
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
@@ -37,7 +38,7 @@ class Comix : HttpSource() {
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "hot")
+            .addQueryParameter("sort", "relevance:desc")
             .build()
         return GET(url, headers)
     }
@@ -53,7 +54,7 @@ class Comix : HttpSource() {
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "updated")
+            .addQueryParameter("sort", "chapter_updated_at:desc")
             .build()
         return GET(url, headers)
     }
@@ -69,7 +70,39 @@ class Comix : HttpSource() {
             url.addQueryParameter("keyword", query)
         }
 
-        // Add filters here if identified later
+        filters.forEach { filter ->
+            when (filter) {
+                is SortFilter -> {
+                    url.addQueryParameter("sort", filter.toUriPart())
+                }
+                is StatusFilter -> {
+                    url.addQueryParameter("statuses", filter.toUriPart())
+                }
+                is TypeFilter -> {
+                    url.addQueryParameter("types", filter.toUriPart())
+                }
+                is DemographicFilter -> {
+                    url.addQueryParameter("demographics", filter.toUriPart())
+                }
+                is GenreFilter -> {
+                    val genres = filter.state
+                        .filter { it.state }
+                        .joinToString(",") { it.value }
+                    if (genres.isNotEmpty()) {
+                        url.addQueryParameter("genres", genres)
+                    }
+                }
+                is ThemeFilter -> {
+                    val themes = filter.state
+                        .filter { it.state }
+                        .joinToString(",") { it.value }
+                    if (themes.isNotEmpty()) {
+                        url.addQueryParameter("themes", themes)
+                    }
+                }
+                else -> {}
+            }
+        }
 
         return GET(url.build(), headers)
     }
@@ -119,6 +152,191 @@ class Comix : HttpSource() {
     private inline fun <reified T> Response.parseAs(): T {
         return json.decodeFromString(body.string())
     }
+
+    override fun getFilterList() = FilterList(
+        SortFilter(),
+        StatusFilter(),
+        TypeFilter(),
+        DemographicFilter(),
+        Filter.Separator(),
+        GenreFilter(),
+        ThemeFilter(),
+    )
+
+    private class SortFilter : Filter.Select<String>(
+        "Sort By",
+        arrayOf(
+            "Best Match",
+            "Updated Date",
+            "Created Date",
+            "Title Ascending",
+            "Year Descending",
+            "Average Score",
+            "Most Views 7d",
+            "Most Views 1mo",
+            "Most Views 3mo",
+            "Total Views",
+            "Most Follows",
+        ),
+    ) {
+        fun toUriPart() = when (state) {
+            0 -> "relevance:desc"
+            1 -> "chapter_updated_at:desc"
+            2 -> "created_at:desc"
+            3 -> "title:asc"
+            4 -> "year:desc"
+            5 -> "score:desc"
+            6 -> "views_7d:desc"
+            7 -> "views_30d:desc"
+            8 -> "views_90d:desc"
+            9 -> "views_total:desc"
+            10 -> "follows_total:desc"
+            else -> "relevance:desc"
+        }
+    }
+
+    private class StatusFilter : Filter.Select<String>(
+        "Status",
+        arrayOf(
+            "All",
+            "Releasing",
+            "Finished",
+            "On Hiatus",
+            "Discontinued",
+            "Not Yet Released",
+        ),
+    ) {
+        fun toUriPart() = when (state) {
+            0 -> ""
+            1 -> "releasing"
+            2 -> "finished"
+            3 -> "on_hiatus"
+            4 -> "discontinued"
+            5 -> "not_yet_released"
+            else -> ""
+        }
+    }
+
+    private class TypeFilter : Filter.Select<String>(
+        "Type",
+        arrayOf(
+            "All",
+            "Manga",
+            "Manhwa",
+            "Manhua",
+            "Other",
+        ),
+    ) {
+        fun toUriPart() = when (state) {
+            0 -> ""
+            1 -> "manga"
+            2 -> "manhwa"
+            3 -> "manhua"
+            4 -> "other"
+            else -> ""
+        }
+    }
+
+    private class DemographicFilter : Filter.Select<String>(
+        "Demographic",
+        arrayOf(
+            "All",
+            "Shounen",
+            "Seinen",
+            "Shoujo",
+            "Josei",
+        ),
+    ) {
+        fun toUriPart() = when (state) {
+            0 -> ""
+            1 -> "2"
+            2 -> "4"
+            3 -> "1"
+            4 -> "3"
+            else -> ""
+        }
+    }
+
+    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
+
+    private class GenreFilter : Filter.Group<GenreCheckBox>(
+        "Genres",
+        listOf(
+            GenreCheckBox("Action", "6"),
+            GenreCheckBox("Adult", "87264"),
+            GenreCheckBox("Adventure", "7"),
+            GenreCheckBox("Boys Love", "8"),
+            GenreCheckBox("Comedy", "9"),
+            GenreCheckBox("Crime", "10"),
+            GenreCheckBox("Drama", "11"),
+            GenreCheckBox("Ecchi", "87265"),
+            GenreCheckBox("Fantasy", "12"),
+            GenreCheckBox("Girls Love", "13"),
+            GenreCheckBox("Hentai", "87266"),
+            GenreCheckBox("Historical", "14"),
+            GenreCheckBox("Horror", "15"),
+            GenreCheckBox("Isekai", "16"),
+            GenreCheckBox("Magical Girls", "17"),
+            GenreCheckBox("Mature", "87267"),
+            GenreCheckBox("Mecha", "18"),
+            GenreCheckBox("Medical", "19"),
+            GenreCheckBox("Mystery", "20"),
+            GenreCheckBox("Philosophical", "21"),
+            GenreCheckBox("Psychological", "22"),
+            GenreCheckBox("Romance", "23"),
+            GenreCheckBox("Sci-Fi", "24"),
+            GenreCheckBox("Slice of Life", "25"),
+            GenreCheckBox("Smut", "87268"),
+            GenreCheckBox("Sports", "26"),
+            GenreCheckBox("Superhero", "27"),
+            GenreCheckBox("Thriller", "28"),
+            GenreCheckBox("Tragedy", "29"),
+            GenreCheckBox("Wuxia", "30"),
+        ),
+    )
+
+    private class ThemeFilter : Filter.Group<GenreCheckBox>(
+        "Themes",
+        listOf(
+            GenreCheckBox("Aliens", "31"),
+            GenreCheckBox("Animals", "32"),
+            GenreCheckBox("Cooking", "33"),
+            GenreCheckBox("Crossdressing", "34"),
+            GenreCheckBox("Delinquents", "35"),
+            GenreCheckBox("Demons", "36"),
+            GenreCheckBox("Genderswap", "37"),
+            GenreCheckBox("Ghosts", "38"),
+            GenreCheckBox("Gyaru", "39"),
+            GenreCheckBox("Harem", "40"),
+            GenreCheckBox("Incest", "41"),
+            GenreCheckBox("Loli", "42"),
+            GenreCheckBox("Mafia", "43"),
+            GenreCheckBox("Magic", "44"),
+            GenreCheckBox("Martial Arts", "45"),
+            GenreCheckBox("Military", "46"),
+            GenreCheckBox("Monster Girls", "47"),
+            GenreCheckBox("Monsters", "48"),
+            GenreCheckBox("Music", "49"),
+            GenreCheckBox("Ninja", "50"),
+            GenreCheckBox("Office Workers", "51"),
+            GenreCheckBox("Police", "52"),
+            GenreCheckBox("Post-Apocalyptic", "53"),
+            GenreCheckBox("Reincarnation", "54"),
+            GenreCheckBox("Reverse Harem", "55"),
+            GenreCheckBox("Samurai", "56"),
+            GenreCheckBox("School Life", "57"),
+            GenreCheckBox("Shota", "58"),
+            GenreCheckBox("Supernatural", "59"),
+            GenreCheckBox("Survival", "60"),
+            GenreCheckBox("Time Travel", "61"),
+            GenreCheckBox("Traditional Games", "62"),
+            GenreCheckBox("Vampires", "63"),
+            GenreCheckBox("Video Games", "64"),
+            GenreCheckBox("Villainess", "65"),
+            GenreCheckBox("Virtual Reality", "66"),
+            GenreCheckBox("Zombies", "67"),
+        ),
+    )
 
     @Serializable
     data class MangaListResponse(
@@ -179,11 +397,10 @@ class Comix : HttpSource() {
             title = this@MangaDetails.title
             description = synopsis
             thumbnail_url = poster?.large ?: poster?.medium ?: poster?.small
-            author = "" // Not found in basic API
-            genre = "" // Not found in basic API
             status = when (this@MangaDetails.status) {
                 "finished", "completed" -> SManga.COMPLETED
-                "ongoing", "publishing" -> SManga.ONGOING
+                "ongoing", "releasing", "publishing" -> SManga.ONGOING
+                "on_hiatus" -> SManga.ON_HIATUS
                 else -> SManga.UNKNOWN
             }
         }
