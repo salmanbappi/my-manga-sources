@@ -61,7 +61,7 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": f"https://salmanbappi.github.io/salmanbappi-manga-extension/apk/{apk.name}",
+        "apk": f"apk/{apk.name}",
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
@@ -85,5 +85,10 @@ for apk in REPO_APK_DIR.iterdir():
 
     index_min_data.append(min_data)
 
+# Write to index.min.json
 with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_file:
     json.dump(index_min_data, index_file, ensure_ascii=False, separators=(",", ":"))
+
+# Also write to repo.json (alternative entry point)
+with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
+    json.dump(index_min_data, repo_file, ensure_ascii=False, separators=(",", ":"))
