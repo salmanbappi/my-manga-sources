@@ -2,7 +2,6 @@ import json
 import os
 import re
 import subprocess
-import hashlib
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -14,17 +13,32 @@ APPLICATION_LABEL_REGEX = re.compile(r"^application-label:'([^']+)'", re.MULTILI
 APPLICATION_ICON_320_REGEX = re.compile(r"^application-icon-320:'([^']+)'", re.MULTILINE)
 LANGUAGE_REGEX = re.compile(r"tachiyomi-([^.]+)")
 
-# Calculate SHA256
-def get_file_sha256(file_path):
-    with open(file_path, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
+# We are in GitHub Actions, aapt should be available or we find it
+try:
+    # Try finding aapt in ANDROID_HOME
+    android_home = os.environ.get("ANDROID_HOME")
+    if android_home:
+        build_tools = list((Path(android_home) / "build-tools").iterdir())
+        if build_tools:
+            # Use the latest build tools
+            build_tools.sort()
+            aapt_cmd = str(build_tools[-1] / "aapt")
+        else:
+            aapt_cmd = "aapt"
+    else:
+        aapt_cmd = "aapt"
+except:
+    aapt_cmd = "aapt"
 
-*_, ANDROID_BUILD_TOOLS = (Path(os.environ["ANDROID_HOME"]) / "build-tools").iterdir()
 REPO_DIR = Path("repo")
 REPO_APK_DIR = REPO_DIR / "apk"
 REPO_ICON_DIR = REPO_DIR / "icon"
 
 REPO_ICON_DIR.mkdir(parents=True, exist_ok=True)
+
+if not os.path.exists("output.json"):
+    print("Error: output.json not found!")
+    exit(1)
 
 with open("output.json", encoding="utf-8") as f:
     inspector_data = json.load(f)
@@ -32,31 +46,45 @@ with open("output.json", encoding="utf-8") as f:
 index_min_data = []
 
 for apk in REPO_APK_DIR.iterdir():
-    badging = subprocess.check_output(
-        [
-            ANDROID_BUILD_TOOLS / "aapt",
-            "dump",
-            "--include-meta-data",
-            "badging",
-            apk,
-        ]
-    ).decode()
+    if not apk.name.endswith(".apk"):
+        continue
+
+    try:
+        badging = subprocess.check_output(
+            [
+                aapt_cmd,
+                "dump",
+                "--include-meta-data",
+                "badging",
+                str(apk),
+            ]
+        ).decode()
+    except Exception as e:
+        print(f"Failed to dump badging for {apk.name}: {e}")
+        continue
 
     package_info = next(x for x in badging.splitlines() if x.startswith("package: "))
     package_name = PACKAGE_NAME_REGEX.search(package_info)[1]
-    application_icon = APPLICATION_ICON_320_REGEX.search(badging)[1]
-
-    with ZipFile(apk) as z, z.open(application_icon) as i, (
-        REPO_ICON_DIR / f"{package_name}.png"
-    ).open("wb") as f:
-        f.write(i.read())
+    
+    # Icon extraction
+    try:
+        application_icon_match = APPLICATION_ICON_320_REGEX.search(badging)
+        if application_icon_match:
+            application_icon = application_icon_match[1]
+            with ZipFile(apk) as z, z.open(application_icon) as i, (
+                REPO_ICON_DIR / f"{package_name}.png"
+            ).open("wb") as f:
+                f.write(i.read())
+    except:
+        pass
 
     language = LANGUAGE_REGEX.search(apk.name)[1]
-    sources = inspector_data[package_name]
+    
+    # Get sources from Inspector output
+    sources = inspector_data.get(package_name, [])
 
     if len(sources) == 1:
         source_language = sources[0]["lang"]
-
         if (
             source_language != language
             and source_language not in {"all", "other"}
@@ -67,41 +95,25 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": apk.name,
+        "apk": f"apk/{apk.name}", # CORRECT RELATIVE PATH
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
-        "size": os.path.getsize(apk),
-        "sha256": get_file_sha256(apk),
-        "icon": f"https://salmanbappi.github.io/salmanbappi-manga-extension/icon/{package_name}.png"
+        "icon": f"icon/{package_name}.png"
     }
+    
     min_data = {
         **common_data,
-        "sources": [],
+        "sources": sources, # Include sources!
     }
-
-    for source in sources:
-        min_data["sources"].append(
-            {
-                "name": source["name"],
-                "lang": source["lang"],
-                "id": source["id"],
-                "baseUrl": source["baseUrl"],
-                "versionId": source["versionId"],
-            }
-        )
 
     index_min_data.append(min_data)
 
-# Write to index.min.json
+# Save index.min.json
 with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_file:
     json.dump(index_min_data, index_file, ensure_ascii=False, separators=(",", ":"))
 
-# Write to index.json (standard)
-with REPO_DIR.joinpath("index.json").open("w", encoding="utf-8") as index_file:
-    json.dump(index_min_data, index_file, ensure_ascii=False, indent=2)
-
-# Also write to repo.json
+# Save repo.json (Duplicate for cache bypassing)
 with REPO_DIR.joinpath("repo.json").open("w", encoding="utf-8") as repo_file:
     json.dump(index_min_data, repo_file, ensure_ascii=False, separators=(",", ":"))

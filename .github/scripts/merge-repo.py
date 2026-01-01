@@ -55,10 +55,11 @@ index = sorted(unique_index.values(), key=lambda x: x["pkg"])
 with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_file:
     json.dump(index, index_file, ensure_ascii=False, indent=2)
 
-# Removed the 'sources' loop because new generator structure doesn't use it
-# for item in index:
-#     for source in item["sources"]:
-#         source.pop("versionId", None)
+# Cleanup sources versionId (standard procedure)
+for item in index:
+    if "sources" in item:
+        for source in item["sources"]:
+            source.pop("versionId", None)
 
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
     json.dump(index, index_min_file, ensure_ascii=False, separators=( ",", ":"))
