@@ -2,6 +2,7 @@ import json
 import os
 import re
 import subprocess
+import hashlib
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -12,6 +13,11 @@ IS_NSFW_REGEX = re.compile(r"'tachiyomi.extension.nsfw' value='([^']+)'")
 APPLICATION_LABEL_REGEX = re.compile(r"^application-label:'([^']+)'", re.MULTILINE)
 APPLICATION_ICON_320_REGEX = re.compile(r"^application-icon-320:'([^']+)'", re.MULTILINE)
 LANGUAGE_REGEX = re.compile(r"tachiyomi-([^.]+)")
+
+# Calculate SHA256
+def get_file_sha256(file_path):
+    with open(file_path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 *_, ANDROID_BUILD_TOOLS = (Path(os.environ["ANDROID_HOME"]) / "build-tools").iterdir()
 REPO_DIR = Path("repo")
@@ -61,11 +67,14 @@ for apk in REPO_APK_DIR.iterdir():
     common_data = {
         "name": APPLICATION_LABEL_REGEX.search(badging)[1],
         "pkg": package_name,
-        "apk": f"apk/{apk.name}",
+        "apk": apk.name,
         "lang": language,
         "code": int(VERSION_CODE_REGEX.search(package_info)[1]),
         "version": VERSION_NAME_REGEX.search(package_info)[1],
         "nsfw": int(IS_NSFW_REGEX.search(badging)[1]),
+        "size": os.path.getsize(apk),
+        "sha256": get_file_sha256(apk),
+        "icon": f"https://salmanbappi.github.io/salmanbappi-manga-extension/icon/{package_name}.png"
     }
     min_data = {
         **common_data,
