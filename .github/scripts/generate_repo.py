@@ -136,7 +136,7 @@ def generate():
                 "hasReadme": 0,
                 "hasChangelog": 0,
                 "icon": f"icon/{pkg}.png",
-                "sig": "212199045691887b32eb2397f167f4b7d53a73131119975df9914595bc95880a",
+                "sig": "ebb6a27ef0629efc1b6f6b3f62d2210c3526e588e670064899fb9b9be4ebea8b",
                 "sources": [
                     {
                         "name": name,
@@ -171,7 +171,7 @@ def generate():
             "name": "SalmanBappi Manga Repo",
             "shortName": "SBManga",
             "website": "https://salmanbappi.github.io/salmanbappi-manga-extension/",
-            "signingKeyFingerprint": "212199045691887b32eb2397f167f4b7d53a73131119975df9914595bc95880a" 
+            "signingKeyFingerprint": "ebb6a27ef0629efc1b6f6b3f62d2210c3526e588e670064899fb9b9be4ebea8b" 
         }
     }
     with open(os.path.join(base_dir, "repo.json"), "w") as f:
