@@ -22,18 +22,24 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 class LikeManga : ParsedHttpSource() {
     override val name = "Like Manga"
-    override val baseUrl = "https://likemanga.ink"
+    override val baseUrl = "https:
+// likemanga.ink"
     override val lang = "en"
     override val supportsLatest = true
     override val client: OkHttpClient = network.cloudflareClient
     private val json: Json by injectLazy()
+
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
-    // Popular
+
+//  Popular
+
     override fun popularMangaRequest(page: Int): Request {
         return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=hot&pageNum=$page", headers)
     }
+
     override fun popularMangaSelector() = "div.video.position-relative"
+
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
         val titleElement = element.selectFirst("p.title-manga a")!!
@@ -42,15 +48,23 @@ class LikeManga : ParsedHttpSource() {
         manga.thumbnail_url = element.selectFirst("img.card-img-top")?.attr("abs:src")
         return manga
     }
+
     override fun popularMangaNextPageSelector() = "li.page-item.active + li a"
-    // Latest
+
+//  Latest
+
     override fun latestUpdatesRequest(page: Int): Request {
         return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=lastest-chap&pageNum=$page", headers)
     }
+
     override fun latestUpdatesSelector() = popularMangaSelector()
+
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
+
     override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
-    // Search
+
+//  Search
+
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
         url.addQueryParameter("pageNum", page.toString())
@@ -80,10 +94,15 @@ class LikeManga : ParsedHttpSource() {
         }
         return GET(url.build().toString(), headers)
     }
+
     override fun searchMangaSelector() = popularMangaSelector()
+
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
+
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
-    // Details
+
+//  Details
+
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
         manga.title = document.selectFirst("h1.title-detail")?.text() ?: "Unknown"
@@ -99,8 +118,11 @@ class LikeManga : ParsedHttpSource() {
         manga.thumbnail_url = document.selectFirst("div.col-image img")?.attr("abs:src")
         return manga
     }
-    // Chapters - The site loads chapters via AJAX and paginates them
+
+//  Chapters - The site loads chapters via AJAX and paginates them
+
     override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
+
     override fun chapterListParse(response: Response): List<SChapter> {
         val body = response.body.string()
         val document = Jsoup.parse(body, response.request.url.toString())
@@ -129,12 +151,15 @@ class LikeManga : ParsedHttpSource() {
                     page++
                 }
             }
-            // Safety break to prevent excessive requests
+
+//  Safety break to prevent excessive requests
             if (page > 500) break
         }
         return chapters
     }
+
     override fun chapterListSelector() = "li.wp-manga-chapter"
+
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
         val linkElement = element.selectFirst("a")!!
@@ -155,7 +180,9 @@ class LikeManga : ParsedHttpSource() {
             0L
         }
     }
-    // Pages
+
+//  Pages
+
     override fun pageListParse(document: Document): List<Page> {
         val pages = mutableListOf<Page>()
         document.select("div.page-chapter img").forEachIndexed { index, img ->
@@ -163,8 +190,11 @@ class LikeManga : ParsedHttpSource() {
         }
         return pages
     }
+
     override fun imageUrlParse(document: Document) = ""
-    // Filters
+
+//  Filters
+
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
         StatusFilter(),
@@ -172,6 +202,7 @@ class LikeManga : ParsedHttpSource() {
         Filter.Separator(),
         GenreGroup()
     )
+
     private class GenreGroup : Filter.Group<GenreCheckBox>("Genres", VALS.map { GenreCheckBox(it.first, it.second) }) {
         companion object {
             private val VALS = arrayOf(
@@ -246,7 +277,9 @@ class LikeManga : ParsedHttpSource() {
             )
         }
     }
+
     private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
+
     private class StatusFilter : Filter.Select<String>(
         "Status",
         VALS.map { it.first }.toTypedArray()
@@ -261,6 +294,7 @@ class LikeManga : ParsedHttpSource() {
             )
         }
     }
+
     private class SortFilter : Filter.Select<String>(
         "Sort by",
         VALS.map { it.first }.toTypedArray()
@@ -282,4 +316,5 @@ class LikeManga : ParsedHttpSource() {
         }
     }
 }
+
 
