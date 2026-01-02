@@ -143,7 +143,6 @@ class LikeMangaIn : ParsedHttpSource() {
         val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
             ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
             ?: document.selectFirst("a.wp-manga-action-button[data-post]")?.attr("data-post")
-            ?: document.selectFirst("div[data-post-id]")?.attr("data-post-id")
 
         if (mangaId != null) {
             val xhrHeaders = headersBuilder()
@@ -156,17 +155,22 @@ class LikeMangaIn : ParsedHttpSource() {
                 .add("manga", mangaId)
                 .build()
 
-            val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
-            val ajaxDoc = ajaxResponse.asJsoup()
+            try {
+                val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
+                val ajaxDoc = ajaxResponse.asJsoup()
 
-            ajaxDoc.select("div.chapter-item, li.wp-manga-chapter").forEach {
-                chapters.add(chapterFromElement(it))
+                // Specific selectors to avoid sidebar/related chapters
+                ajaxDoc.select(".listing-chapters_wrap .chapter-item, .listing-chapters_wrap .wp-manga-chapter, .main .chapter-item").forEach {
+                    chapters.add(chapterFromElement(it))
+                }
+            } catch (e: Exception) {
+                // Ignore AJAX errors and fallback
             }
         }
 
-        // Fallback or additional chapters in-page (Restricted to listing container to avoid sidebar)
+        // Fallback for non-AJAX or if AJAX returns empty
         if (chapters.isEmpty()) {
-            document.select("div.chapter-item").forEach {
+            document.select(".listing-chapters_wrap .chapter-item, .listing-chapters_wrap .wp-manga-chapter, .main .chapter-item").forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
