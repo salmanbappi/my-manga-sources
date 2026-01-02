@@ -1,5 +1,5 @@
 ext {
-    extName = 'Comix (@SBManga)'
+    extName = 'Comix'
     extClass = '.Comix'
     extVersionCode = 104
     isNsfw = false
