@@ -11,6 +11,27 @@ def get_file_sha256(file_path):
     with open(file_path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
+def get_source_id(name, lang):
+    """
+    Calculates the Source ID using Tachiyomi's hashCode logic.
+    Formula: (name.hashCode() & 0x7fffffff) + (if (lang == "all") 0 else lang.hashCode())
+    """
+    def java_hash_code(s):
+        h = 0
+        for char in s:
+            h = (31 * h + ord(char)) & 0xFFFFFFFF
+        # Convert to signed 32-bit integer
+        if h > 0x7FFFFFFF:
+            h -= 0x100000000
+        return h
+
+    name_hash = java_hash_code(name) & 0x7fffffff
+    if lang == "all":
+        return str(name_hash)
+    
+    lang_hash = java_hash_code(lang)
+    return str(name_hash + lang_hash)
+
 def generate():
     repo_data = {}
     
@@ -43,6 +64,12 @@ def generate():
             name = pkg
             lang = "en"
             
+            # Extract basic name from package if possible
+            # e.g. eu.kanade.tachiyomi.extension.en.comix -> Comix
+            name_parts = pkg.split('.')
+            if len(name_parts) > 0:
+                name = name_parts[-1].capitalize()
+
             try:
                 # Find aapt
                 from subprocess import check_output
@@ -70,7 +97,10 @@ def generate():
                 if pkg_match: pkg = pkg_match.group(1)
                 if ver_code_match: code = int(ver_code_match.group(1))
                 if ver_name_match: version = ver_name_match.group(1)
-                if label_match: name = label_match.group(1)
+                
+                # For label, strip "Tachiyomi: " if present to get clean source name
+                if label_match:
+                    name = label_match.group(1).replace("Tachiyomi: ", "")
                 
                 # Extract Icon
                 if icon_match:
@@ -92,8 +122,11 @@ def generate():
             except Exception as e:
                 print(f"Warning: aapt failed for {apk_name}: {e}")
 
+            # Calculate Source ID
+            source_id = get_source_id(name, lang)
+
             item = {
-                "name": name,
+                "name": f"Tachiyomi: {name}", # Keep full name for app display
                 "pkg": pkg,
                 "apk": apk_name,
                 "lang": lang,
@@ -102,7 +135,15 @@ def generate():
                 "nsfw": 1, 
                 "hasReadme": 0,
                 "hasChangelog": 0,
-                "icon": f"icon/{pkg}.png"
+                "icon": f"icon/{pkg}.png",
+                "sources": [
+                    {
+                        "name": name,
+                        "id": source_id,
+                        "lang": lang,
+                        "baseUrl": "" # Can be filled if known
+                    }
+                ]
             }
             item["size"] = get_apk_size(apk_path)
             item["sha256"] = get_file_sha256(apk_path)
@@ -129,7 +170,7 @@ def generate():
             "name": "SalmanBappi Manga Repo",
             "shortName": "SBManga",
             "website": "https://salmanbappi.github.io/salmanbappi-manga-extension/",
-            "signingKeyFingerprint": "" # Optional
+            "signingKeyFingerprint": "" 
         }
     }
     with open(os.path.join(base_dir, "repo.json"), "w") as f:
