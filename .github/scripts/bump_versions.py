@@ -17,7 +17,9 @@ def bump_version(file_path):
     if match:
         old_version = int(match.group(2))
         new_version = old_version + 1
-        new_content = re.sub(pattern, f"\\1{new_version}", content)
+        # Use \1 instead of \\1 to avoid potential escaping issues in some environments
+        # Or even better, just construct the string
+        new_content = re.sub(pattern, rf"\g<1>{new_version}", content)
         
         with open(file_path, 'w') as f:
             f.write(new_content)
