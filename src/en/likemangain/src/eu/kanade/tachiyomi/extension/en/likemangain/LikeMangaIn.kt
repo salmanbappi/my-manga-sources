@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.likemangain
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
@@ -9,7 +8,6 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import kotlinx.serialization.json.Json
-import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -132,52 +130,25 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Chapters
     override fun chapterListRequest(manga: SManga): Request {
-        return GET(baseUrl + manga.url, headers)
+        // Use the specialized AJAX chapters page which is not blocked by Cloudflare
+        return GET(baseUrl + manga.url + "ajax/chapters/", headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
         val chapters = mutableListOf<SChapter>()
-
+        
         // Extract manga slug to filter out sidebar chapters
-        val mangaSlug = response.request.url.pathSegments.filter { it.isNotEmpty() }.last()
-
-        // Check if chapters are loaded via AJAX
-        val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
-            ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
-            ?: document.selectFirst("a.wp-manga-action-button[data-post]")?.attr("data-post")
-            ?: document.selectFirst("div[data-post-id]")?.attr("data-post-id")
-
-        if (mangaId != null) {
-            val xhrHeaders = headersBuilder()
-                .add("X-Requested-With", "XMLHttpRequest")
-                .add("Referer", response.request.url.toString())
-                .build()
-
-            val formBody = FormBody.Builder()
-                .add("action", "manga_get_chapters")
-                .add("manga", mangaId)
-                .build()
-
-            try {
-                val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
-                val ajaxDoc = ajaxResponse.asJsoup()
-
-                ajaxDoc.select("div.chapter-item, li.wp-manga-chapter").forEach {
-                    chapters.add(chapterFromElement(it))
-                }
-            } catch (e: Exception) {}
+        val mangaSlug = response.request.url.pathSegments.filter { it.isNotEmpty() }.reversed().let {
+            if (it.size > 1 && it[0] == "chapters") it[1] else it[0]
         }
 
-        // Fallback for non-AJAX
-        if (chapters.isEmpty()) {
-            document.select("div.chapter-item, li.wp-manga-chapter").forEach {
-                chapters.add(chapterFromElement(it))
-            }
+        document.select("div.chapter-item, li.wp-manga-chapter").forEach {
+            chapters.add(chapterFromElement(it))
         }
 
         return chapters
-            .filter { it.url.contains(mangaSlug) } // Crucial: Remove sidebar items
+            .filter { it.url.contains(mangaSlug) }
             .distinctBy { it.url }
     }
 
