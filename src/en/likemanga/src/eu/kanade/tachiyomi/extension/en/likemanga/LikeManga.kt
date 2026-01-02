@@ -122,8 +122,7 @@ class LikeManga : ParsedHttpSource() {
     override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val body = response.body.string()
-        val document = Jsoup.parse(body, response.request.url.toString())
+        val document = Jsoup.parse(response.body.string(), response.request.url.toString())
         val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
             ?: throw Exception("Could not find manga ID")
 
@@ -153,8 +152,8 @@ class LikeManga : ParsedHttpSource() {
                     page++
                 }
             }
-            // Safety break to prevent excessive requests
-            if (page > 500) break
+            // Safety break to prevent excessive requests (usually site doesn't have > 1000 pages of chapters)
+            if (page > 1000) break
         }
 
         return chapters
@@ -289,10 +288,10 @@ class LikeManga : ParsedHttpSource() {
 
         companion object {
             private val VALS = arrayOf(
-                Pair("All", "all"),
-                Pair("Complete", "complete"),
-                Pair("In process", "in-process"),
-                Pair("Pause", "pause")
+                Pair("All", ""),
+                Pair("Complete", "Complete"),
+                Pair("In process", "In process"),
+                Pair("Pause", "Pause")
             )
         }
     }
@@ -305,16 +304,15 @@ class LikeManga : ParsedHttpSource() {
 
         companion object {
             private val VALS = arrayOf(
-                Pair("Hot", "hot"),
-                Pair("Lastest update", "lastest-chap"),
-                Pair("New", "lastest-manga"),
-                Pair("Top all", "top-manga"),
-                Pair("Top month", "top-month"),
-                Pair("Top week", "top-week"),
-                Pair("Top day", "top-day"),
-                Pair("Follow", "follow"),
-                Pair("Comment", "comment"),
-                Pair("Num. Chapter", "num-chap")
+                Pair("Lasted chapter update", "lastest-chap"),
+                Pair("Lasted manga update", "lastest-manga"),
+                Pair("Manga with the most views", "top-manga"),
+                Pair("Manga with the most views in month", "top-month"),
+                Pair("Manga with the most views in week", "top-week"),
+                Pair("Manga with the most views in day", "top-day"),
+                Pair("Manga with the most follow", "follow"),
+                Pair("Manga with the most comments", "comment"),
+                Pair("Manga with the most chapters", "num-chap")
             )
         }
     }
