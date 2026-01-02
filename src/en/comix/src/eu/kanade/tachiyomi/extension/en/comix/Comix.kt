@@ -18,6 +18,8 @@ import uy.kohesive.injekt.injectLazy
 
 class Comix : HttpSource() {
 
+    override val id: Long = 7537715367149829912L
+
     override val name = "Comix"
 
     override val baseUrl = "https://comix.to"

@@ -65,7 +65,7 @@ jobs:
 
       - name: Build extensions
         env:
-          MODULES: :src:all:mangafire:assembleRelease
+          MODULES: :src:en:likemanga:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease
           ALIAS: ${{ secrets.ALIAS }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

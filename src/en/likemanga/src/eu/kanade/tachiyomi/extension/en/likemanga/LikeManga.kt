@@ -17,6 +17,8 @@ import java.util.Locale
 
 class LikeManga : ParsedHttpSource() {
 
+    override val id: Long = 411833355147795520L
+
     override val name = "Like Manga"
 
     override val baseUrl = "https://likemanga.ink"
