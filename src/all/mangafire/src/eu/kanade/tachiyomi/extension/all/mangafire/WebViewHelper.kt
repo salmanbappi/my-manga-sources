@@ -183,9 +183,9 @@ class WebViewHelper(
             WebResourceResponse(
                 mediaType?.let { "${it.type}/${it.subtype}" },
                 mediaType?.charset()?.name(),
-                Buffer().readFrom(
-                    response.body.byteStream(),
-                ).inputStream(),
+                Buffer().apply {
+                    readFrom(response.body.byteStream())
+                }.inputStream(),
             )
         }
     }
