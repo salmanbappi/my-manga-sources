@@ -132,6 +132,9 @@ def generate():
             elif 'Like Manga' in name:
                 source_id = '411833355147795520'
                 base_url = 'https://likemanga.ink'
+            elif 'MangaFire' in name:
+                source_id = '1695572115'
+                base_url = 'https://mangafire.to'
             else:
                 base_url = ""
 
