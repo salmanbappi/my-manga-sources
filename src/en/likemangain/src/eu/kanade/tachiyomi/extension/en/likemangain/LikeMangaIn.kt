@@ -139,9 +139,9 @@ class LikeMangaIn : ParsedHttpSource() {
         val document = response.asJsoup()
         val chapters = mutableListOf<SChapter>()
 
-        // Extract manga slug from request URL
-        val url = response.request.url.toString()
-        val mangaSlug = url.substringAfter("/manga/").substringBefore("/")
+        // Accurate slug extraction
+        val urlStr = response.request.url.toString()
+        val mangaSlug = urlStr.substringAfter("/manga/").substringBefore("/")
 
         document.select("div.chapter-item, li.wp-manga-chapter").forEach {
             val chapter = chapterFromElement(it)
