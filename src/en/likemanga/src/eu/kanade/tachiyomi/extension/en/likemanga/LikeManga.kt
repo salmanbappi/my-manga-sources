@@ -2,11 +2,13 @@ package eu.kanade.tachiyomi.extension.en.likemanga
 
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -28,6 +30,8 @@ class LikeManga : ParsedHttpSource() {
     override val supportsLatest = true
 
     override val id: Long = 411833355147795520L
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -68,6 +72,29 @@ class LikeManga : ParsedHttpSource() {
         val url = "$baseUrl/page/$page/".toHttpUrl().newBuilder()
         url.addQueryParameter("s", query)
         url.addQueryParameter("post_type", "wp-manga")
+
+        filters.forEach { filter ->
+            when (filter) {
+                is GenreFilter -> {
+                    filter.state.filter { it.state }.forEach {
+                        url.addQueryParameter("genre[]", it.value)
+                    }
+                }
+                is StatusFilter -> {
+                    val status = filter.toUriPart()
+                    if (status.isNotEmpty()) {
+                        url.addQueryParameter("status[]", status)
+                    }
+                }
+                is SortFilter -> {
+                    val sort = filter.toUriPart()
+                    if (sort.isNotEmpty()) {
+                        url.addQueryParameter("m_orderby", sort)
+                    }
+                }
+                else -> {}
+            }
+        }
         
         return GET(url.build().toString(), headers)
     }
@@ -172,4 +199,108 @@ class LikeManga : ParsedHttpSource() {
     
     // Extensions:
     private fun Response.asJsoup(): Document = org.jsoup.Jsoup.parse(body.string(), request.url.toString())
+
+    // Filters
+    override fun getFilterList() = FilterList(
+        Filter.Header("Search query ignores filters"),
+        StatusFilter(),
+        SortFilter(),
+        Filter.Separator(),
+        GenreFilter()
+    )
+
+    private class GenreFilter : Filter.Group<GenreCheckBox>("Genres", getGenreList())
+    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
+
+    private class StatusFilter : Filter.Select<String>("Status", arrayOf("All", "Ongoing", "Completed", "On Hold", "Canceled", "Upcoming"), 0) {
+        fun toUriPart() = when (state) {
+            1 -> "on-going"
+            2 -> "end"
+            3 -> "on-hold"
+            4 -> "canceled"
+            5 -> "upcoming"
+            else -> ""
+        }
+    }
+
+    private class SortFilter : Filter.Select<String>("Sort By", arrayOf("Relevance", "Latest", "Trending", "Most Views", "New", "A-Z", "Rating"), 0) {
+        fun toUriPart() = when (state) {
+            1 -> "latest"
+            2 -> "trending"
+            3 -> "views"
+            4 -> "new-manga"
+            5 -> "alphabet"
+            6 -> "rating"
+            else -> ""
+        }
+    }
+
+    companion object {
+        private fun getGenreList() = listOf(
+            GenreCheckBox("Action", "action"),
+            GenreCheckBox("Adaptation", "adaptation"),
+            GenreCheckBox("Adult", "adult"),
+            GenreCheckBox("Adventure", "adventure"),
+            GenreCheckBox("Anime", "anime"),
+            GenreCheckBox("Comedy", "comedy"),
+            GenreCheckBox("Completed", "completed"),
+            GenreCheckBox("Cooking", "cooking"),
+            GenreCheckBox("Crime", "crime"),
+            GenreCheckBox("Crossdressin", "crossdressin"),
+            GenreCheckBox("Delinquents", "delinquents"),
+            GenreCheckBox("Demons", "demons"),
+            GenreCheckBox("Detective", "detective"),
+            GenreCheckBox("Drama", "drama"),
+            GenreCheckBox("Ecchi", "ecchi"),
+            GenreCheckBox("Fantasy", "fantasy"),
+            GenreCheckBox("Game", "game"),
+            GenreCheckBox("Ghosts", "ghosts"),
+            GenreCheckBox("Harem", "harem"),
+            GenreCheckBox("Historical", "historical"),
+            GenreCheckBox("Horror", "horror"),
+            GenreCheckBox("Isekai", "isekai"),
+            GenreCheckBox("Josei", "josei"),
+            GenreCheckBox("Magic", "magic"),
+            GenreCheckBox("Manhua", "manhua"),
+            GenreCheckBox("Manhwa", "manhwa"),
+            GenreCheckBox("Martial Arts", "martial-arts"),
+            GenreCheckBox("Mature", "mature"),
+            GenreCheckBox("Mecha", "mecha"),
+            GenreCheckBox("Medical", "medical"),
+            GenreCheckBox("Military", "military"),
+            GenreCheckBox("Monsters", "monsters"),
+            GenreCheckBox("Music", "music"),
+            GenreCheckBox("Mystery", "mystery"),
+            GenreCheckBox("Office Workers", "office-workers"),
+            GenreCheckBox("One Shot", "one-shot"),
+            GenreCheckBox("Philosophical", "philosophical"),
+            GenreCheckBox("Police", "police"),
+            GenreCheckBox("Psychological", "psychological"),
+            GenreCheckBox("Reincarnation", "reincarnation"),
+            GenreCheckBox("Reverse Harem", "reverse-harem"),
+            GenreCheckBox("Romance", "romance"),
+            GenreCheckBox("School Life", "school-life"),
+            GenreCheckBox("Sci-fi", "sci-fi"),
+            GenreCheckBox("Seinen", "seinen"),
+            GenreCheckBox("Shoujo", "shoujo"),
+            GenreCheckBox("Shoujo Ai", "shoujo-ai"),
+            GenreCheckBox("Shounen", "shounen"),
+            GenreCheckBox("Shounen Ai", "shounen-ai"),
+            GenreCheckBox("Slice of Life", "slice-of-life"),
+            GenreCheckBox("Smut", "smut"),
+            GenreCheckBox("Sports", "sports"),
+            GenreCheckBox("Superhero", "superhero"),
+            GenreCheckBox("Supernatural", "supernatural"),
+            GenreCheckBox("Survival", "survival"),
+            GenreCheckBox("Thriller", "thriller"),
+            GenreCheckBox("Time Travel", "time-travel"),
+            GenreCheckBox("Tragedy", "tragedy"),
+            GenreCheckBox("Vampire", "vampire"),
+            GenreCheckBox("Villainess", "villainess"),
+            GenreCheckBox("Webtoons", "webtoons"),
+            GenreCheckBox("Yaoi", "yaoi"),
+            GenreCheckBox("Yuri", "yuri"),
+            GenreCheckBox("Zombies", "zombies")
+        )
+    }
 }
