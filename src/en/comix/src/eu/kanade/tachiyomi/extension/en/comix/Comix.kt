@@ -34,10 +34,11 @@ class Comix : HttpSource() {
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
 
+    // Popular Section: Most Recent Popular -> views_7d:desc
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "views_total:desc")
+            .addQueryParameter("sort", "views_7d:desc")
             .build()
         return GET(url, headers)
     }
@@ -49,10 +50,11 @@ class Comix : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
+    // Latest Section: Latest Updates New -> created_at:desc
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "chapter_updated_at:desc")
+            .addQueryParameter("sort", "created_at:desc")
             .build()
         return GET(url, headers)
     }
