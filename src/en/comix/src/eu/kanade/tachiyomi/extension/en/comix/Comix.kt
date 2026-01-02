@@ -1,4 +1,5 @@
 package eu.kanade.tachiyomi.extension.en.comix
+
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -15,20 +16,23 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
+
 class Comix : HttpSource() {
+
     override val name = "Comix"
-    override val baseUrl = "https:
-    // comix.to"
-    private val apiUrl = "https:
-    // comix.to/api/v2"
+
+    override val baseUrl = "https://comix.to"
+
+    private val apiUrl = "https://comix.to/api/v2"
+
     override val lang = "en"
+
     override val supportsLatest = true
+
     private val json: Json by injectLazy()
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
-
-    //  Popular
 
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
@@ -45,8 +49,6 @@ class Comix : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    //  Latest
-
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
@@ -57,14 +59,14 @@ class Comix : HttpSource() {
 
     override fun latestUpdatesParse(response: Response) = popularMangaParse(response)
 
-    //  Search
-
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
+
         if (query.isNotBlank()) {
             url.addQueryParameter("keyword", query)
         }
+
         filters.forEach { filter ->
             when (filter) {
                 is SortFilter -> {
@@ -113,12 +115,11 @@ class Comix : HttpSource() {
                 else -> {}
             }
         }
+
         return GET(url.build(), headers)
     }
 
     override fun searchMangaParse(response: Response) = popularMangaParse(response)
-
-    //  Details
 
     override fun mangaDetailsRequest(manga: SManga): Request {
         return GET("$apiUrl/manga${manga.url}", headers)
@@ -133,8 +134,6 @@ class Comix : HttpSource() {
         return "$baseUrl/comic${manga.url}"
     }
 
-    //  Chapters
-
     override fun chapterListRequest(manga: SManga): Request {
         return GET("$apiUrl/manga${manga.url}/chapters", headers)
     }
@@ -142,8 +141,10 @@ class Comix : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val firstPage = response.parseAs<ChapterListResponse>()
         val chapters = firstPage.result.items.map { it.toSChapter() }.toMutableList()
+
         var currentPage = firstPage.result.pagination.current_page
         val lastPage = firstPage.result.pagination.last_page
+
         while (currentPage < lastPage) {
             currentPage++
             val url = response.request.url.newBuilder()
@@ -152,13 +153,12 @@ class Comix : HttpSource() {
             val nextResponse = client.newCall(GET(url, headers)).execute()
             val nextData = nextResponse.parseAs<ChapterListResponse>()
             chapters.addAll(nextData.result.items.map { it.toSChapter() })
+
             if (currentPage > 500) break
-    //  Safety break
         }
+
         return chapters
     }
-
-    //  Pages
 
     override fun pageListRequest(chapter: SChapter): Request {
         return GET("$apiUrl/chapters${chapter.url}", headers)
@@ -174,6 +174,7 @@ class Comix : HttpSource() {
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException("Not used")
     }
+
     private inline fun <reified T> Response.parseAs(): T {
         return json.decodeFromString(body.string())
     }
@@ -457,5 +458,3 @@ class Comix : HttpSource() {
         val url: String
     )
 }
-
-
