@@ -138,7 +138,7 @@ class LikeMangaIn : ParsedHttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
         val chapters = mutableListOf<SChapter>()
-        
+
         // Extract manga slug to filter out sidebar chapters
         val mangaSlug = response.request.url.pathSegments.filter { it.isNotEmpty() }.last()
 
