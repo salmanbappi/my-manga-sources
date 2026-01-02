@@ -80,12 +80,20 @@ jobs:
           EXT="${{ github.event.inputs.extension || 'all' }}"
           if [ "$EXT" == "all" ]; then
             echo "MODULES=:src:en:likemanga:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - All Extensions" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for all extensions." >> $GITHUB_ENV
           elif [ "$EXT" == "likemanga" ]; then
             echo "MODULES=:src:en:likemanga:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - Like Manga" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for Like Manga fix." >> $GITHUB_ENV
           elif [ "$EXT" == "comix" ]; then
             echo "MODULES=:src:en:comix:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - Comix" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for Comix." >> $GITHUB_ENV
           elif [ "$EXT" == "mangafire" ]; then
             echo "MODULES=:src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - MangaFire" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for MangaFire." >> $GITHUB_ENV
           fi
 
       - name: Build extensions
@@ -183,12 +191,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: Build-${{ github.run_number }}
-          name: Build ${{ github.run_number }} - LikeManga v1.4.10
-          body: |
-            ### Automated Build
-            - Implemented AJAX chapter loading (fixes 100+ chapters issue).
-            - Refined search logic.
-            - Updated metadata.
+          name: ${{ env.RELEASE_NAME }}
+          body: ${{ env.RELEASE_BODY }}
           files: |
             repo/apk/*.apk
           draft: false
