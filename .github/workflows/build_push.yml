@@ -164,9 +164,6 @@ jobs:
         env:
           DELETE: '[]'
         run: |
-          cp ${{ github.ref_name }}/repo/index.json repo/index.json
-          cp ${{ github.ref_name }}/repo/index.min.json repo/index.min.json
-          cp ${{ github.ref_name }}/repo/repo.json repo/repo.json
           cd repo
           python ../${{ github.ref_name }}/.github/scripts/merge-repo.py "$DELETE" '${{ github.ref_name }}/repo'
 
