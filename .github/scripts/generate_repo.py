@@ -170,7 +170,7 @@ def generate():
             "name": "SalmanBappi Manga Repo",
             "shortName": "SBManga",
             "website": "https://salmanbappi.github.io/salmanbappi-manga-extension/",
-            "signingKeyFingerprint": "212199045691887b32eb2397f167f4b7d53a73131119975df9914595bc95880a" 
+            "signingKeyFingerprint": "6e4ae65f82fc1dfdd67d8f7c20b90286e643cb18" 
         }
     }
     with open(os.path.join(base_dir, "repo.json"), "w") as f:
