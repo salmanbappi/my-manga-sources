@@ -138,13 +138,15 @@ class LikeMangaIn : ParsedHttpSource() {
         val document = response.asJsoup()
         val chapters = mutableListOf<SChapter>()
 
-        // Extract manga slug to filter out sidebar chapters
-        val mangaSlug = response.request.url.pathSegments.filter { it.isNotEmpty() }.reversed().let {
-            if (it.size > 1 && it[0] == "chapters") it[1] else it[0]
-        }
+        // Accurate slug extraction
+        val url = response.request.url.toString()
+        val mangaSlug = url.substringBefore("/ajax/chapters/").substringBefore("/chapters/").substringAfterLast("/").substringBeforeLast("/")
 
         document.select("div.chapter-item, li.wp-manga-chapter").forEach {
-            chapters.add(chapterFromElement(it))
+            val chapter = chapterFromElement(it)
+            // Normalize URL
+            chapter.url = chapter.url.substringBefore("?").removeSuffix("/")
+            chapters.add(chapter)
         }
 
         return chapters
