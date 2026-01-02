@@ -37,7 +37,7 @@ class Comix : HttpSource() {
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "relevance:desc")
+            .addQueryParameter("sort", "views_total:desc")
             .build()
         return GET(url, headers)
     }
@@ -139,21 +139,19 @@ class Comix : HttpSource() {
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val firstPage = response.parseAs<ChapterListResponse>()
-        val chapters = firstPage.result.items.map { it.toSChapter() }.toMutableList()
+        val chapters = mutableListOf<SChapter>()
+        var currentPage = 1
+        var hasNextPage = true
 
-        var currentPage = firstPage.result.pagination.current_page
-        val lastPage = firstPage.result.pagination.last_page
-
-        while (currentPage < lastPage) {
-            currentPage++
+        while (hasNextPage) {
             val url = response.request.url.newBuilder()
                 .setQueryParameter("page", currentPage.toString())
                 .build()
-            val nextResponse = client.newCall(GET(url, headers)).execute()
-            val nextData = nextResponse.parseAs<ChapterListResponse>()
-            chapters.addAll(nextData.result.items.map { it.toSChapter() })
-
+            val pageResponse = client.newCall(GET(url, headers)).execute()
+            val data = pageResponse.parseAs<ChapterListResponse>()
+            chapters.addAll(data.result.items.map { it.toSChapter() })
+            hasNextPage = data.result.pagination.current_page < data.result.pagination.last_page
+            currentPage++
             if (currentPage > 500) break
         }
 
