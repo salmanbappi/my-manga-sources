@@ -91,14 +91,14 @@ class ComixFilters {
             Pair("Video Games", "64"),
             Pair("Villainess", "65"),
             Pair("Virtual Reality", "66"),
-            Pair("Zombies", "67"),
+            Pair("Zombies", "67")
         )
 
         fun getDemographics() = arrayOf(
             Pair("Shoujo", "1"),
             Pair("Shounen", "2"),
             Pair("Josei", "3"),
-            Pair("Seinen", "4"),
+            Pair("Seinen", "4")
         )
     }
 
@@ -112,18 +112,18 @@ class ComixFilters {
         Filter.Separator(),
         Filter.Header("Release Year"),
         YearFromFilter(),
-        YearToFilter(),
+        YearToFilter()
     )
 
     private open class UriPartFilter(
         name: String,
         private val param: String,
         private val vals: Array<Pair<String, String>>,
-        defaultValue: String? = null,
+        defaultValue: String? = null
     ) : Filter.Select<String>(
         name,
         vals.map { it.first }.toTypedArray(),
-        vals.indexOfFirst { it.second == defaultValue }.takeIf { it != -1 } ?: 0,
+        vals.indexOfFirst { it.second == defaultValue }.takeIf { it != -1 } ?: 0
     ),
         UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
@@ -136,10 +136,10 @@ class ComixFilters {
     private open class UriMultiSelectFilter(
         name: String,
         private val param: String,
-        private val vals: Array<Pair<String, String>>,
+        private val vals: Array<Pair<String, String>>
     ) : Filter.Group<UriMultiSelectOption>(
         name,
-        vals.map { UriMultiSelectOption(it.first, it.second) },
+        vals.map { UriMultiSelectOption(it.first, it.second) }
     ),
         UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
@@ -155,10 +155,10 @@ class ComixFilters {
     private open class UriTriSelectFilter(
         name: String,
         private val param: String,
-        private val vals: Array<Pair<String, String>>,
+        private val vals: Array<Pair<String, String>>
     ) : Filter.Group<UriTriSelectOption>(
         name,
-        vals.map { UriTriSelectOption(it.first, it.second) },
+        vals.map { UriTriSelectOption(it.first, it.second) }
     ),
         UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
@@ -175,7 +175,7 @@ class ComixFilters {
         UriTriSelectFilter(
             "Demographic",
             "demographics[]",
-            demographics,
+            demographics
         )
 
     private class TypeFilter : UriMultiSelectFilter(
@@ -185,14 +185,14 @@ class ComixFilters {
             Pair("Manga", "manga"),
             Pair("Manhwa", "manhwa"),
             Pair("Manhua", "manhua"),
-            Pair("Other", "other"),
-        ),
+            Pair("Other", "other")
+        )
     )
 
     private class GenreFilter(genres: Array<Pair<String, String>>) : UriTriSelectFilter(
         "Genres",
         "genres[]",
-        genres,
+        genres
     )
 
     private class StatusFilter : UriMultiSelectFilter(
@@ -203,21 +203,21 @@ class ComixFilters {
             Pair("Releasing", "releasing"),
             Pair("On Hiatus", "on_hiatus"),
             Pair("Discontinued", "discontinued"),
-            Pair("Not Yet Released", "not_yet_released"),
-        ),
+            Pair("Not Yet Released", "not_yet_released")
+        )
     )
 
     private class YearFromFilter : UriPartFilter(
         "From",
         "release_year[from]",
         getYearsArray(includeOlder = true),
-        "older",
+        "older"
     )
 
     private class YearToFilter : UriPartFilter(
         "To",
         "release_year[to]",
-        getYearsArray(includeOlder = false),
+        getYearsArray(includeOlder = false)
     )
 
     private class MinChapterFilter : Filter.Text("Minimum Chapter Length"), UriFilter {
@@ -225,7 +225,7 @@ class ComixFilters {
             if (state.isNotEmpty()) {
                 val value = state.toIntOrNull()?.takeIf { it > 0 }
                     ?: throw IllegalArgumentException(
-                        "Minimum chapter length must be a positive integer greater than 0",
+                        "Minimum chapter length must be a positive integer greater than 0"
                     )
                 builder.addQueryParameter("min_chap", value.toString())
             }
@@ -244,14 +244,14 @@ class ComixFilters {
         Sortable("Title", "title"),
         Sortable("Year", "year"),
         Sortable("Total Views", "views_total"),
-        Sortable("Most Follows", "follows_total"),
+        Sortable("Most Follows", "follows_total")
     )
 
     private class SortFilter(private val sortables: Array<Sortable>) :
         Filter.Sort(
             "Sort By",
             sortables.map(Sortable::title).toTypedArray(),
-            Selection(1, false),
+            Selection(1, false)
         ),
         UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
