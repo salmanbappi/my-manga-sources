@@ -144,8 +144,25 @@ class Comix : HttpSource() {
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val data = response.parseAs<ChapterListResponse>()
-        return data.result.items.map { it.toSChapter() }
+        val firstPage = response.parseAs<ChapterListResponse>()
+        val chapters = firstPage.result.items.map { it.toSChapter() }.toMutableList()
+        
+        var currentPage = firstPage.result.pagination.current_page
+        val lastPage = firstPage.result.pagination.last_page
+        
+        while (currentPage < lastPage) {
+            currentPage++
+            val url = response.request.url.newBuilder()
+                .setQueryParameter("page", currentPage.toString())
+                .build()
+            val nextResponse = client.newCall(GET(url, headers)).execute()
+            val nextData = nextResponse.parseAs<ChapterListResponse>()
+            chapters.addAll(nextData.result.items.map { it.toSChapter() })
+            
+            if (currentPage > 500) break // Safety break
+        }
+        
+        return chapters
     }
 
     // Pages
@@ -405,7 +422,8 @@ class Comix : HttpSource() {
 
     @Serializable
     data class ChapterListResult(
-        val items: List<ChapterItem>
+        val items: List<ChapterItem>,
+        val pagination: Pagination
     )
 
     @Serializable
@@ -413,14 +431,21 @@ class Comix : HttpSource() {
         val chapter_id: Long,
         val number: Float,
         val name: String? = null,
-        val created_at: Long? = null
+        val created_at: Long? = null,
+        val scanlation_group: ScanlationGroup? = null
     ) {
         fun toSChapter() = SChapter.create().apply {
             url = "/$chapter_id"
             name = "Chapter $number" + (if (this@ChapterItem.name.isNullOrBlank()) "" else ": ${this@ChapterItem.name}")
             date_upload = created_at?.times(1000) ?: 0L
+            scanlator = scanlation_group?.name
         }
     }
+
+    @Serializable
+    data class ScanlationGroup(
+        val name: String
+    )
 
     @Serializable
     data class PageListResponse(
