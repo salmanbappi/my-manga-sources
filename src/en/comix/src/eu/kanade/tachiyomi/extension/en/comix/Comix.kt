@@ -23,7 +23,7 @@ class Comix : HttpSource() {
 
     override val baseUrl = "https://comix.to"
 
-    private val apiUrl = "https://comix.to/api/v2"
+    private val apiUrl = "https://api.comick.io"
 
     override val lang = "en"
 
@@ -35,36 +35,42 @@ class Comix : HttpSource() {
         .add("Referer", "$baseUrl/")
 
     override fun popularMangaRequest(page: Int): Request {
-        val url = "$apiUrl/manga".toHttpUrl().newBuilder()
-            .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "views_total:desc")
+        val url = "$apiUrl/top".toHttpUrl().newBuilder()
+            .addQueryParameter("type", "trending")
+            .addQueryParameter("comic_types", "manhwa,manhua")
+            .addQueryParameter("accept_mature", "true")
             .build()
         return GET(url, headers)
     }
 
     override fun popularMangaParse(response: Response): MangasPage {
-        val data = response.parseAs<MangaListResponse>()
-        val mangas = data.result.items.map { it.toSManga() }
-        val hasNextPage = data.result.pagination.current_page < data.result.pagination.last_page
-        return MangasPage(mangas, hasNextPage)
+        val data = response.parseAs<List<MangaItem>>()
+        val mangas = data.map { it.toSManga() }
+        return MangasPage(mangas, false)
     }
 
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "chapter_updated_at:desc")
+            .addQueryParameter("sort", "uploaded")
+            .addQueryParameter("tachiyomi", "true")
             .build()
         return GET(url, headers)
     }
 
-    override fun latestUpdatesParse(response: Response) = popularMangaParse(response)
+    override fun latestUpdatesParse(response: Response): MangasPage {
+        val data = response.parseAs<List<MangaItem>>()
+        val mangas = data.map { it.toSManga() }
+        return MangasPage(mangas, mangas.isNotEmpty())
+    }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$apiUrl/manga".toHttpUrl().newBuilder()
+        val url = "$apiUrl/v1.0/search".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
+            .addQueryParameter("limit", "30")
 
         if (query.isNotBlank()) {
-            url.addQueryParameter("keyword", query)
+            url.addQueryParameter("q", query)
         }
 
         filters.forEach { filter ->
@@ -72,44 +78,9 @@ class Comix : HttpSource() {
                 is SortFilter -> {
                     url.addQueryParameter("sort", filter.toUriPart())
                 }
-                is StatusFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("statuses[]", it.value)
-                    }
-                }
-                is TypeFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("types[]", it.value)
-                    }
-                }
-                is DemographicFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("demographics[]", it.value)
-                    }
-                }
                 is GenreFilter -> {
                     filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("genres[]", it.value)
-                    }
-                }
-                is ThemeFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("themes[]", it.value)
-                    }
-                }
-                is MinChaptersFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("chapters_min", filter.state)
-                    }
-                }
-                is YearFromFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("year_from", filter.state)
-                    }
-                }
-                is YearToFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("year_to", filter.state)
+                        url.addQueryParameter("genres", it.value)
                     }
                 }
                 else -> {}
@@ -119,59 +90,57 @@ class Comix : HttpSource() {
         return GET(url.build(), headers)
     }
 
-    override fun searchMangaParse(response: Response) = popularMangaParse(response)
+    override fun searchMangaParse(response: Response): MangasPage {
+        val data = response.parseAs<List<MangaItem>>()
+        val mangas = data.map { it.toSManga() }
+        return MangasPage(mangas, mangas.isNotEmpty())
+    }
 
     override fun mangaDetailsRequest(manga: SManga): Request {
-        return GET("$apiUrl/manga${manga.url}", headers)
+        return GET("$apiUrl/comic/${manga.url.substringAfterLast("/")}", headers)
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
         val data = response.parseAs<MangaDetailsResponse>()
-        return data.result.toSManga()
-    }
-
-    override fun getMangaUrl(manga: SManga): String {
-        return "$baseUrl/comic${manga.url}"
+        return data.comic.toSManga()
     }
 
     override fun chapterListRequest(manga: SManga): Request {
-        return GET("$apiUrl/manga${manga.url}/chapters", headers)
+        return GET("$apiUrl/comic/${manga.url.substringAfterLast("/")}/chapters?lang=en&limit=100", headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val chapters = mutableListOf<SChapter>()
-        var currentPage = 1
+        var page = 1
         var hasNextPage = true
 
         while (hasNextPage) {
             val url = response.request.url.newBuilder()
-                .setQueryParameter("page", currentPage.toString())
+                .setQueryParameter("page", page.toString())
                 .build()
             val pageResponse = client.newCall(GET(url, headers)).execute()
             val data = pageResponse.parseAs<ChapterListResponse>()
-            chapters.addAll(data.result.items.map { it.toSChapter() })
-            hasNextPage = data.result.pagination.current_page < data.result.pagination.last_page
-            currentPage++
-            if (currentPage > 500) break
+            chapters.addAll(data.chapters.map { it.toSChapter() })
+            hasNextPage = data.chapters.isNotEmpty() && chapters.size < data.total
+            page++
+            if (page > 100) break
         }
 
         return chapters
     }
 
     override fun pageListRequest(chapter: SChapter): Request {
-        return GET("$apiUrl/chapters${chapter.url}", headers)
+        return GET("$apiUrl/chapter/${chapter.url.substringAfterLast("/")}", headers)
     }
 
     override fun pageListParse(response: Response): List<Page> {
         val data = response.parseAs<PageListResponse>()
-        return data.result.images.mapIndexed { index, image ->
-            Page(index, "", image.url)
+        return data.chapter.images.mapIndexed { index, image ->
+            Page(index, "", "https://meo.comick.pictures/${image.url}")
         }
     }
 
-    override fun imageUrlParse(response: Response): String {
-        throw UnsupportedOperationException("Not used")
-    }
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException("Not used")
 
     private inline fun <reified T> Response.parseAs(): T {
         return json.decodeFromString(body.string())
@@ -179,231 +148,71 @@ class Comix : HttpSource() {
 
     override fun getFilterList() = FilterList(
         SortFilter(),
-        StatusFilter(),
-        TypeFilter(),
-        DemographicFilter(),
-        Filter.Separator(),
-        MinChaptersFilter(),
-        YearFromFilter(),
-        YearToFilter(),
-        Filter.Separator(),
-        GenreFilter(),
-        ThemeFilter()
+        GenreFilter()
     )
 
     private class SortFilter : Filter.Select<String>(
         "Sort By",
-        arrayOf(
-            "Best Match",
-            "Updated Date",
-            "Created Date",
-            "Title Ascending",
-            "Year Descending",
-            "Average Score",
-            "Most Views 7d",
-            "Most Views 1mo",
-            "Most Views 3mo",
-            "Total Views",
-            "Most Follows"
-        )
+        arrayOf("Trending", "Most Views", "Most Follows", "Newest")
     ) {
         fun toUriPart() = when (state) {
-            0 -> "relevance:desc"
-            1 -> "chapter_updated_at:desc"
-            2 -> "created_at:desc"
-            3 -> "title:asc"
-            4 -> "year:desc"
-            5 -> "score:desc"
-            6 -> "views_7d:desc"
-            7 -> "views_30d:desc"
-            8 -> "views_90d:desc"
-            9 -> "views_total:desc"
-            10 -> "follows_total:desc"
-            else -> "relevance:desc"
+            0 -> "trending"
+            1 -> "views"
+            2 -> "follow"
+            3 -> "uploaded"
+            else -> "trending"
         }
     }
+
+    private class GenreFilter : Filter.Group<CheckBoxFilter>(
+        "Genres",
+        listOf(
+            CheckBoxFilter("Action", "action"),
+            CheckBoxFilter("Adventure", "adventure"),
+            CheckBoxFilter("Comedy", "comedy"),
+            CheckBoxFilter("Drama", "drama"),
+            CheckBoxFilter("Fantasy", "fantasy"),
+            CheckBoxFilter("Isekai", "isekai")
+        )
+    )
 
     private class CheckBoxFilter(name: String, val value: String) : Filter.CheckBox(name)
 
-    private class StatusFilter : Filter.Group<CheckBoxFilter>(
-        "Status",
-        listOf(
-            CheckBoxFilter("Releasing", "releasing"),
-            CheckBoxFilter("Finished", "finished"),
-            CheckBoxFilter("On Hiatus", "on_hiatus"),
-            CheckBoxFilter("Discontinued", "discontinued"),
-            CheckBoxFilter("Not Yet Released", "not_yet_released")
-        )
-    )
-
-    private class TypeFilter : Filter.Group<CheckBoxFilter>(
-        "Type",
-        listOf(
-            CheckBoxFilter("Manga", "manga"),
-            CheckBoxFilter("Manhwa", "manhwa"),
-            CheckBoxFilter("Manhua", "manhua"),
-            CheckBoxFilter("Other", "other")
-        )
-    )
-
-    private class DemographicFilter : Filter.Group<CheckBoxFilter>(
-        "Demographic",
-        listOf(
-            CheckBoxFilter("Shounen", "2"),
-            CheckBoxFilter("Seinen", "4"),
-            CheckBoxFilter("Shoujo", "1"),
-            CheckBoxFilter("Josei", "3")
-        )
-    )
-
-    private class MinChaptersFilter : Filter.Text("Min Chapters")
-
-    private class YearFromFilter : Filter.Text("Year From")
-
-    private class YearToFilter : Filter.Text("Year To")
-
-    private class GenreFilter : Filter.Group<CheckBoxFilter>(
-        "Genres (AND)",
-        listOf(
-            CheckBoxFilter("Action", "6"),
-            CheckBoxFilter("Adult", "87264"),
-            CheckBoxFilter("Adventure", "7"),
-            CheckBoxFilter("Boys Love", "8"),
-            CheckBoxFilter("Comedy", "9"),
-            CheckBoxFilter("Crime", "10"),
-            CheckBoxFilter("Drama", "11"),
-            CheckBoxFilter("Ecchi", "87265"),
-            CheckBoxFilter("Fantasy", "12"),
-            CheckBoxFilter("Girls Love", "13"),
-            CheckBoxFilter("Hentai", "87266"),
-            CheckBoxFilter("Historical", "14"),
-            CheckBoxFilter("Horror", "15"),
-            CheckBoxFilter("Isekai", "16"),
-            CheckBoxFilter("Magical Girls", "17"),
-            CheckBoxFilter("Mature", "87267"),
-            CheckBoxFilter("Mecha", "18"),
-            CheckBoxFilter("Medical", "19"),
-            CheckBoxFilter("Mystery", "20"),
-            CheckBoxFilter("Philosophical", "21"),
-            CheckBoxFilter("Psychological", "22"),
-            CheckBoxFilter("Romance", "23"),
-            CheckBoxFilter("Sci-Fi", "24"),
-            CheckBoxFilter("Slice of Life", "25"),
-            CheckBoxFilter("Smut", "87268"),
-            CheckBoxFilter("Sports", "26"),
-            CheckBoxFilter("Superhero", "27"),
-            CheckBoxFilter("Thriller", "28"),
-            CheckBoxFilter("Tragedy", "29"),
-            CheckBoxFilter("Wuxia", "30")
-        )
-    )
-
-    private class ThemeFilter : Filter.Group<CheckBoxFilter>(
-        "Themes (AND)",
-        listOf(
-            CheckBoxFilter("Aliens", "31"),
-            CheckBoxFilter("Animals", "32"),
-            CheckBoxFilter("Cooking", "33"),
-            CheckBoxFilter("Crossdressing", "34"),
-            CheckBoxFilter("Delinquents", "35"),
-            CheckBoxFilter("Demons", "36"),
-            CheckBoxFilter("Genderswap", "37"),
-            CheckBoxFilter("Ghosts", "38"),
-            CheckBoxFilter("Gyaru", "39"),
-            CheckBoxFilter("Harem", "40"),
-            CheckBoxFilter("Incest", "41"),
-            CheckBoxFilter("Loli", "42"),
-            CheckBoxFilter("Mafia", "43"),
-            CheckBoxFilter("Magic", "44"),
-            CheckBoxFilter("Martial Arts", "45"),
-            CheckBoxFilter("Military", "46"),
-            CheckBoxFilter("Monster Girls", "47"),
-            CheckBoxFilter("Monsters", "48"),
-            CheckBoxFilter("Music", "49"),
-            CheckBoxFilter("Ninja", "50"),
-            CheckBoxFilter("Office Workers", "51"),
-            CheckBoxFilter("Police", "52"),
-            CheckBoxFilter("Post-Apocalyptic", "53"),
-            CheckBoxFilter("Reincarnation", "54"),
-            CheckBoxFilter("Reverse Harem", "55"),
-            CheckBoxFilter("Samurai", "56"),
-            CheckBoxFilter("School Life", "57"),
-            CheckBoxFilter("Shota", "58"),
-            CheckBoxFilter("Supernatural", "59"),
-            CheckBoxFilter("Survival", "60"),
-            CheckBoxFilter("Time Travel", "61"),
-            CheckBoxFilter("Traditional Games", "62"),
-            CheckBoxFilter("Vampires", "63"),
-            CheckBoxFilter("Video Games", "64"),
-            CheckBoxFilter("Villainess", "65"),
-            CheckBoxFilter("Virtual Reality", "66"),
-            CheckBoxFilter("Zombies", "67")
-        )
-    )
-
-    @Serializable
-    data class MangaListResponse(
-        val result: MangaListResult
-    )
-
-    @Serializable
-    data class MangaListResult(
-        val items: List<MangaItem>,
-        val pagination: Pagination
-    )
-
     @Serializable
     data class MangaItem(
-        val hash_id: String,
+        val hid: String,
         val title: String,
-        val slug: String,
-        val poster: Poster? = null,
-        val status: String? = null
+        val md_covers: List<Cover>? = null
     ) {
         fun toSManga() = SManga.create().apply {
-            this.url = "/$hash_id"
-            this.title = this@MangaItem.title
-            this.thumbnail_url = poster?.large ?: poster?.medium ?: poster?.small
+            url = "/comic/$hid"
+            title = this@MangaItem.title
+            thumbnail_url = md_covers?.firstOrNull()?.let { "https://meo.comick.pictures/${it.b2key}" }
         }
     }
 
     @Serializable
-    data class Poster(
-        val small: String? = null,
-        val medium: String? = null,
-        val large: String? = null
-    )
+    data class Cover(val b2key: String)
 
     @Serializable
-    data class Pagination(
-        val current_page: Int,
-        val last_page: Int
-    )
-
-    @Serializable
-    data class MangaDetailsResponse(
-        val result: MangaDetails
-    )
+    data class MangaDetailsResponse(val comic: MangaDetails)
 
     @Serializable
     data class MangaDetails(
-        val hash_id: String,
+        val hid: String,
         val title: String,
-        val alt_titles: List<String> = emptyList(),
-        val synopsis: String? = null,
-        val poster: Poster? = null,
-        val status: String? = null,
-        val type: String? = null
+        val desc: String? = null,
+        val md_covers: List<Cover>? = null,
+        val status: Int? = null
     ) {
         fun toSManga() = SManga.create().apply {
-            url = "/$hash_id"
+            url = "/comic/$hid"
             title = this@MangaDetails.title
-            description = synopsis
-            thumbnail_url = poster?.large ?: poster?.medium ?: poster?.small
+            description = desc
+            thumbnail_url = md_covers?.firstOrNull()?.let { "https://meo.comick.pictures/${it.b2key}" }
             status = when (this@MangaDetails.status) {
-                "finished", "completed" -> SManga.COMPLETED
-                "ongoing", "releasing", "publishing" -> SManga.ONGOING
-                "on_hiatus" -> SManga.ON_HIATUS
+                1 -> SManga.ONGOING
+                2 -> SManga.COMPLETED
                 else -> SManga.UNKNOWN
             }
         }
@@ -411,48 +220,31 @@ class Comix : HttpSource() {
 
     @Serializable
     data class ChapterListResponse(
-        val result: ChapterListResult
-    )
-
-    @Serializable
-    data class ChapterListResult(
-        val items: List<ChapterItem>,
-        val pagination: Pagination
+        val chapters: List<ChapterItem>,
+        val total: Int
     )
 
     @Serializable
     data class ChapterItem(
-        val chapter_id: Long,
-        val number: Float,
-        val name: String? = null,
-        val created_at: Long? = null,
-        val scanlation_group: ScanlationGroup? = null
+        val hid: String,
+        val title: String? = null,
+        val chap: String? = null,
+        val created_at: String? = null,
+        val group_name: List<String>? = null
     ) {
         fun toSChapter() = SChapter.create().apply {
-            url = "/$chapter_id"
-            name = "Chapter $number" + (if (this@ChapterItem.name.isNullOrBlank()) "" else ": ${this@ChapterItem.name}")
-            date_upload = created_at?.times(1000) ?: 0L
-            scanlator = scanlation_group?.name
+            url = "/chapter/$hid"
+            name = "Chapter $chap" + (if (title.isNullOrBlank()) "" else ": $title")
+            scanlator = group_name?.joinToString()
         }
     }
 
     @Serializable
-    data class ScanlationGroup(
-        val name: String
-    )
+    data class PageListResponse(val chapter: PageList)
 
     @Serializable
-    data class PageListResponse(
-        val result: PageListResult
-    )
+    data class PageList(val images: List<ImageItem>)
 
     @Serializable
-    data class PageListResult(
-        val images: List<ImageItem>
-    )
-
-    @Serializable
-    data class ImageItem(
-        val url: String
-    )
+    data class ImageItem(val url: String)
 }
