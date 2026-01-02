@@ -126,7 +126,10 @@ def generate():
             source_id = get_source_id(name, lang)
             
             # Hard-force correct IDs for specific extensions
-            if 'Comix' in name:
+            if 'Like Manga In' in name:
+                source_id = '611833355147795521'
+                base_url = 'https://likemanga.in'
+            elif 'Comix' in name:
                 source_id = '7537715367149829912'
                 base_url = 'https://comix.to'
             elif 'Like Manga' in name:

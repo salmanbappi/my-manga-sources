@@ -22,6 +22,7 @@ on:
         options:
           - all
           - likemanga
+          - likemangain
           - comix
           - mangafire
 
@@ -79,13 +80,17 @@ jobs:
         run: |
           EXT="${{ github.event.inputs.extension || 'all' }}"
           if [ "$EXT" == "all" ]; then
-            echo "MODULES=:src:en:likemanga:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+            echo "MODULES=:src:en:likemanga:assembleRelease :src:en:likemangain:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease" >> $GITHUB_ENV
             echo "RELEASE_NAME=Build ${{ github.run_number }} - All Extensions" >> $GITHUB_ENV
             echo "RELEASE_BODY=Automated build for all extensions." >> $GITHUB_ENV
           elif [ "$EXT" == "likemanga" ]; then
             echo "MODULES=:src:en:likemanga:assembleRelease" >> $GITHUB_ENV
             echo "RELEASE_NAME=Build ${{ github.run_number }} - Like Manga" >> $GITHUB_ENV
             echo "RELEASE_BODY=Automated build for Like Manga fix." >> $GITHUB_ENV
+          elif [ "$EXT" == "likemangain" ]; then
+            echo "MODULES=:src:en:likemangain:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - Like Manga In" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for Like Manga In." >> $GITHUB_ENV
           elif [ "$EXT" == "comix" ]; then
             echo "MODULES=:src:en:comix:assembleRelease" >> $GITHUB_ENV
             echo "RELEASE_NAME=Build ${{ github.run_number }} - Comix" >> $GITHUB_ENV
@@ -194,7 +199,7 @@ jobs:
           name: ${{ env.RELEASE_NAME }}
           body: ${{ env.RELEASE_BODY }}
           files: |
-            repo/apk/*.apk
+            ${{ github.ref_name }}/repo/apk/*.apk
           draft: false
           prerelease: false
         env:
