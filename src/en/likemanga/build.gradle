@@ -1,7 +1,7 @@
 ext {
     extName = 'Like Manga'
     extClass = '.LikeManga'
-    extVersionCode = 72
+    extVersionCode = 75
     isNsfw = true
 }
 
