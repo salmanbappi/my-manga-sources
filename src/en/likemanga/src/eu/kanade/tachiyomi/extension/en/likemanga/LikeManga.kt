@@ -10,8 +10,13 @@ import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
+import okhttp3.Response
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -113,7 +118,47 @@ class LikeManga : ParsedHttpSource() {
         return manga
     }
 
-    override fun chapterListSelector() = "ul#list_chapter_id_detail li.wp-manga-chapter"
+    override fun chapterListSelector() = "li.wp-manga-chapter"
+
+    override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
+
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val document = Jsoup.parse(response.body.string(), response.request.url.toString())
+        val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
+            ?: throw Exception("Could not find manga ID")
+
+        val chapters = mutableListOf<SChapter>()
+        var page = 1
+        var hasNextPage = true
+
+        while (hasNextPage) {
+            val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&manga_id=$mangaId&page_num=$page"
+            val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
+            val jsonString = ajaxResponse.body.string()
+
+            val jsonObject = Json.parseToJsonElement(jsonString).jsonObject
+            val ajaxHtml = jsonObject["list_chap"]?.jsonPrimitive?.content ?: ""
+
+            if (ajaxHtml.isBlank()) {
+                hasNextPage = false
+            } else {
+                val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
+                val elements = ajaxDoc.select(chapterListSelector())
+                if (elements.isEmpty()) {
+                    hasNextPage = false
+                } else {
+                    elements.forEach {
+                        chapters.add(chapterFromElement(it))
+                    }
+                    page++
+                }
+            }
+            // Safety break
+            if (page > 500) break
+        }
+
+        return chapters
+    }
 
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
