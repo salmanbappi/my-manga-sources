@@ -166,7 +166,7 @@ class LikeMangaIn : ParsedHttpSource() {
 
         // Fallback or additional chapters in-page (Restricted to listing container to avoid sidebar)
         if (chapters.isEmpty()) {
-            document.select("div.listing-chapters_wrap div.chapter-item, div.listing-chapters_wrap li.wp-manga-chapter").forEach {
+            document.select("div.chapter-item").forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
