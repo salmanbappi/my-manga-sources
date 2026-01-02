@@ -41,13 +41,13 @@ class LikeMangaIn : ParsedHttpSource() {
         return GET("$baseUrl/manga/?m_orderby=views&page=$page", headers)
     }
 
-    override fun popularMangaSelector() = "div.c-tabs-item__content"
+    override fun popularMangaSelector() = "div.page-item-detail"
 
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
-        val titleElement = element.selectFirst("div.post-title h3 a, div.post-title h4 a")!!
+        val titleElement = element.selectFirst("div.item-thumb a")!!
         manga.setUrlWithoutDomain(titleElement.attr("href"))
-        manga.title = titleElement.text()
+        manga.title = titleElement.attr("title").ifEmpty { titleElement.text() }
         manga.thumbnail_url = element.selectFirst("img")?.let { img ->
             img.attr("data-src").ifEmpty { img.attr("src") }
         }
@@ -99,7 +99,7 @@ class LikeMangaIn : ParsedHttpSource() {
         return GET(url.build().toString(), headers)
     }
 
-    override fun searchMangaSelector() = "div.c-tabs-item__content"
+    override fun searchMangaSelector() = "div.page-item-detail"
 
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
 
@@ -158,7 +158,10 @@ class LikeMangaIn : ParsedHttpSource() {
             ajaxDoc.select(chapterListSelector()).forEach {
                 chapters.add(chapterFromElement(it))
             }
-        } else {
+        }
+
+        // Fallback or additional chapters in-page
+        if (chapters.isEmpty()) {
             document.select(chapterListSelector()).forEach {
                 chapters.add(chapterFromElement(it))
             }
@@ -181,7 +184,7 @@ class LikeMangaIn : ParsedHttpSource() {
     private fun parseDate(dateStr: String): Long {
         return try {
             val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
-            dateFormat.parse(dateStr)?.time ?: 0L
+            dateFormat.parse(dateStr.trim())?.time ?: 0L
         } catch (e: Exception) {
             0L
         }
