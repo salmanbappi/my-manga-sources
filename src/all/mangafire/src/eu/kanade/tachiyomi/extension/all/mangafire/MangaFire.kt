@@ -327,9 +327,7 @@ class MangaFire(
         return client.newCall(GET(intercepted, headers))
             .asObservableSuccess().map {
                 it.parseAs<ResponseDto<PageListDto>>().result
-                    .pages.mapIndexed {
-                        index,
-                        image ->
+                    .pages.mapIndexed { index, image ->
                         val url = image.url
                         val offset = image.offset
                         val imageUrl =
