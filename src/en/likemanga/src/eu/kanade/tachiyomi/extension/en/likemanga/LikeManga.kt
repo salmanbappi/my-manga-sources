@@ -153,6 +153,8 @@ class LikeManga : ParsedHttpSource() {
         GenreGroup()
     )
 
+    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
+
     private class GenreGroup : Filter.Group<GenreCheckBox>("Genres", VALS.map { GenreCheckBox(it.first, it.second) }) {
         companion object {
             private val VALS = arrayOf(
@@ -228,43 +230,27 @@ class LikeManga : ParsedHttpSource() {
         }
     }
 
-    private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
-
-    private class StatusFilter : Filter.Select<String>(
-        "Status",
-        VALS.map { it.first }.toTypedArray()
-    ) {
-        fun toUriPart() = VALS[state].second
-
-        companion object {
-            private val VALS = arrayOf(
-                Pair("All", "all"),
-                Pair("Complete", "complete"),
-                Pair("In process", "in-process"),
-                Pair("Pause", "pause")
-            )
+    private class StatusFilter : Filter.Select<String>("Status", arrayOf("All", "Ongoing", "Completed")) {
+        fun toUriPart() = when (state) {
+            1 -> "ongoing"
+            2 -> "completed"
+            else -> "all"
         }
     }
 
     private class SortFilter : Filter.Select<String>(
-        "Sort by",
-        VALS.map { it.first }.toTypedArray()
+        "Sort By",
+        arrayOf("Latest Chap", "New Manga", "Hot", "Top All", "Top Month", "Top Week", "Top Day")
     ) {
-        fun toUriPart() = VALS[state].second
-
-        companion object {
-            private val VALS = arrayOf(
-                Pair("Hot", "hot"),
-                Pair("Lastest update", "lastest-chap"),
-                Pair("New", "lastest-manga"),
-                Pair("Top all", "top-manga"),
-                Pair("Top month", "top-month"),
-                Pair("Top week", "top-week"),
-                Pair("Top day", "top-day"),
-                Pair("Follow", "follow"),
-                Pair("Comment", "comment"),
-                Pair("Num. Chapter", "num-chap")
-            )
+        fun toUriPart() = when (state) {
+            0 -> "lastest-chap"
+            1 -> "lastest-manga"
+            2 -> "hot"
+            3 -> "top-all"
+            4 -> "top-month"
+            5 -> "top-week"
+            6 -> "top-day"
+            else -> "lastest-chap"
         }
     }
 }
