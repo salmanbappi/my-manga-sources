@@ -130,28 +130,21 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Chapters
     override fun chapterListRequest(manga: SManga): Request {
-        // Use the specialized AJAX chapters page which is not blocked by Cloudflare
+        // Use GET endpoint to bypass Cloudflare AJAX POST blocking
         return GET(baseUrl + manga.url + "ajax/chapters/", headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        val chapters = mutableListOf<SChapter>()
 
-        // Accurate slug extraction
+        // Accurate slug extraction to filter out sidebar chapters
         val url = response.request.url.toString()
-        val mangaSlug = url.substringBefore("/ajax/chapters/").substringBefore("/chapters/").substringAfterLast("/").substringBeforeLast("/")
+        val mangaSlug = url.substringAfter("/manga/").substringBefore("/")
 
-        document.select("div.chapter-item, li.wp-manga-chapter").forEach {
-            val chapter = chapterFromElement(it)
-            // Normalize URL
-            chapter.url = chapter.url.substringBefore("?").removeSuffix("/")
-            chapters.add(chapter)
-        }
-
-        return chapters
-            .filter { it.url.contains(mangaSlug) }
-            .distinctBy { it.url }
+        return document.select("div.chapter-item, li.wp-manga-chapter")
+            .map { chapterFromElement(it) }
+            .filter { it.url.contains("/manga/$mangaSlug/") }
+            .distinctBy { it.url.removeSuffix("/") }
     }
 
     override fun chapterListSelector() = "div.chapter-item, li.wp-manga-chapter"
