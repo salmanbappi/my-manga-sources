@@ -122,8 +122,18 @@ def generate():
             except Exception as e:
                 print(f"Warning: aapt failed for {apk_name}: {e}")
 
-            # Calculate Source ID
+                        # Calculate Source ID
             source_id = get_source_id(name, lang)
+            
+            # Hard-force correct IDs for specific extensions
+            if 'Comix' in name:
+                source_id = '7537715367149829912'
+                base_url = 'https://comix.to'
+            elif 'Like Manga' in name:
+                source_id = '411833355147795520'
+                base_url = 'https://likemanga.ink'
+            else:
+                base_url = ""
 
             item = {
                 "name": f"Tachiyomi: {name}", # Keep full name for app display
@@ -142,11 +152,10 @@ def generate():
                         "name": name,
                         "id": source_id,
                         "lang": lang,
-                        "baseUrl": "" # Can be filled if known
+                        "baseUrl": base_url
                     }
                 ]
             }
-            item["size"] = get_apk_size(apk_path)
             item["sha256"] = get_file_sha256(apk_path)
             
             repo_data[pkg] = item
