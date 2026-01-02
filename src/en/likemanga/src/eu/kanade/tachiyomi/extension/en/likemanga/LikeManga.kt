@@ -7,6 +7,10 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -127,37 +131,55 @@ class LikeManga : ParsedHttpSource() {
         val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
             ?: throw Exception("Could not find manga ID")
 
-        val chapters = mutableListOf<SChapter>()
-        var page = 1
-        var hasNextPage = true
+        return runBlocking(Dispatchers.IO) {
+            val chapters = mutableListOf<SChapter>()
 
-        while (hasNextPage) {
-            val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&manga_id=$mangaId&page_num=$page"
-            val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
-            val jsonString = ajaxResponse.body.string()
+            // Fetch first page to see if we have anything
+            val page1 = getChapters(mangaId, 1)
+            chapters.addAll(page1)
 
-            val jsonObject = Json.parseToJsonElement(jsonString).jsonObject
-            val ajaxHtml = jsonObject["list_chap"]?.jsonPrimitive?.content ?: ""
+            if (page1.isNotEmpty()) {
+                val batchSize = 5
+                var currentBatchStart = 2
 
-            if (ajaxHtml.isBlank()) {
-                hasNextPage = false
-            } else {
-                val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
-                val elements = ajaxDoc.select(chapterListSelector())
-                if (elements.isEmpty()) {
-                    hasNextPage = false
-                } else {
-                    elements.forEach {
-                        chapters.add(chapterFromElement(it))
+                while (true) {
+                    val deferreds = (currentBatchStart until currentBatchStart + batchSize).map { page ->
+                        async { page to getChapters(mangaId, page) }
                     }
-                    page++
+
+                    val results = deferreds.awaitAll().sortedBy { it.first }
+
+                    results.forEach { (_, pageChapters) ->
+                        chapters.addAll(pageChapters)
+                    }
+
+                    if (results.any { it.second.isEmpty() }) {
+                        break
+                    }
+
+                    currentBatchStart += batchSize
+                    if (currentBatchStart > 500) break
                 }
             }
-            // Safety break
-            if (page > 500) break
-        }
 
-        return chapters
+            chapters
+        }
+    }
+
+    private fun getChapters(mangaId: String, page: Int): List<SChapter> {
+        val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&manga_id=$mangaId&page_num=$page"
+        val response = client.newCall(GET(ajaxUrl, headers)).execute()
+        val jsonString = response.body.string()
+
+        val jsonObject = Json.parseToJsonElement(jsonString).jsonObject
+        val ajaxHtml = jsonObject["list_chap"]?.jsonPrimitive?.content ?: ""
+
+        if (ajaxHtml.isBlank()) return emptyList()
+
+        val ajaxDoc = Document.createShell(baseUrl).apply { body().append(ajaxHtml) }
+        val elements = ajaxDoc.select(chapterListSelector())
+
+        return elements.map { chapterFromElement(it) }
     }
 
     override fun chapterFromElement(element: Element): SChapter {
