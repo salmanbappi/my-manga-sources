@@ -34,11 +34,11 @@ class Comix : HttpSource() {
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
 
-    // Popular Section: Most Recent Popular -> views_7d:desc
+    // Popular Section: Most Recent Popular -> uses rank:asc or just rank
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "views_7d:desc")
+            .addQueryParameter("sort", "rank:asc")
             .build()
         return GET(url, headers)
     }
@@ -50,11 +50,11 @@ class Comix : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    // Latest Section: Latest Updates New -> created_at:desc
+    // Latest Section: Latest Updates New -> uses chapter_updated_at:desc
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "created_at:desc")
+            .addQueryParameter("sort", "chapter_updated_at:desc")
             .build()
         return GET(url, headers)
     }
@@ -206,7 +206,8 @@ class Comix : HttpSource() {
             "Most Views 1mo",
             "Most Views 3mo",
             "Total Views",
-            "Most Follows"
+            "Most Follows",
+            "Rank"
         )
     ) {
         fun toUriPart() = when (state) {
@@ -221,6 +222,7 @@ class Comix : HttpSource() {
             8 -> "views_90d:desc"
             9 -> "views_total:desc"
             10 -> "follows_total:desc"
+            11 -> "rank:asc"
             else -> "relevance:desc"
         }
     }
