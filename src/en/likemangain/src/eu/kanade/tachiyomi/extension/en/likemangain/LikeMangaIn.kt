@@ -138,11 +138,15 @@ class LikeMangaIn : ParsedHttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
         val chapters = mutableListOf<SChapter>()
+        
+        // Extract manga slug to filter out sidebar chapters
+        val mangaSlug = response.request.url.pathSegments.filter { it.isNotEmpty() }.last()
 
         // Check if chapters are loaded via AJAX
         val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
             ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
             ?: document.selectFirst("a.wp-manga-action-button[data-post]")?.attr("data-post")
+            ?: document.selectFirst("div[data-post-id]")?.attr("data-post-id")
 
         if (mangaId != null) {
             val xhrHeaders = headersBuilder()
@@ -159,23 +163,22 @@ class LikeMangaIn : ParsedHttpSource() {
                 val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
                 val ajaxDoc = ajaxResponse.asJsoup()
 
-                // Specific selectors to avoid sidebar/related chapters
-                ajaxDoc.select(".listing-chapters_wrap .chapter-item, .listing-chapters_wrap .wp-manga-chapter, .main .chapter-item").forEach {
+                ajaxDoc.select("div.chapter-item, li.wp-manga-chapter").forEach {
                     chapters.add(chapterFromElement(it))
                 }
-            } catch (e: Exception) {
-                // Ignore AJAX errors and fallback
-            }
+            } catch (e: Exception) {}
         }
 
-        // Fallback for non-AJAX or if AJAX returns empty
+        // Fallback for non-AJAX
         if (chapters.isEmpty()) {
-            document.select(".listing-chapters_wrap .chapter-item, .listing-chapters_wrap .wp-manga-chapter, .main .chapter-item").forEach {
+            document.select("div.chapter-item, li.wp-manga-chapter").forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
 
-        return chapters.distinctBy { it.url }
+        return chapters
+            .filter { it.url.contains(mangaSlug) } // Crucial: Remove sidebar items
+            .distinctBy { it.url }
     }
 
     override fun chapterListSelector() = "div.chapter-item, li.wp-manga-chapter"
