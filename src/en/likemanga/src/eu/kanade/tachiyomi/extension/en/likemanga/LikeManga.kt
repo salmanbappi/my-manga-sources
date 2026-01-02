@@ -30,7 +30,7 @@ class LikeManga : ParsedHttpSource() {
 
     override val name = "Like Manga"
 
-    override val baseUrl = "https://likemanga.ink"
+    override val baseUrl = "https://likemanga.in"
 
     override val lang = "en"
 
