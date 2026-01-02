@@ -95,7 +95,7 @@ class LikeManga : ParsedHttpSource() {
                 else -> {}
             }
         }
-        
+
         return GET(url.build().toString(), headers)
     }
 
@@ -138,7 +138,7 @@ class LikeManga : ParsedHttpSource() {
         val chapters = mutableListOf<SChapter>()
 
         // Check if chapters are loaded via AJAX
-        val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id") 
+        val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
             ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
 
         if (mangaId != null) {
@@ -154,12 +154,12 @@ class LikeManga : ParsedHttpSource() {
 
             val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
             val ajaxDoc = ajaxResponse.asJsoup()
-            
+
             ajaxDoc.select(chapterListSelector()).forEach {
                 chapters.add(chapterFromElement(it))
             }
         } else {
-             document.select(chapterListSelector()).forEach {
+            document.select(chapterListSelector()).forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
@@ -196,7 +196,7 @@ class LikeManga : ParsedHttpSource() {
     }
 
     override fun imageUrlParse(document: Document) = ""
-    
+
     // Extensions:
     private fun Response.asJsoup(): Document = org.jsoup.Jsoup.parse(body.string(), request.url.toString())
 
