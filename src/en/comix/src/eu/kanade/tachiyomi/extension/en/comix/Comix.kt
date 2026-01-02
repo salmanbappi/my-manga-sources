@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.comix
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
@@ -31,14 +30,16 @@ class Comix : HttpSource() {
 
     private val json: Json by injectLazy()
 
+    private val filters = ComixFilters()
+
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
 
-    // Popular Section: Most Recent Popular -> uses rank:asc or just rank
+    // Popular Section: Most Recent Popular -> views_30d:desc
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "rank:asc")
+            .addQueryParameter("order[views_30d]", "desc")
             .build()
         return GET(url, headers)
     }
@@ -50,11 +51,11 @@ class Comix : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    // Latest Section: Latest Updates New -> uses chapter_updated_at:desc
+    // Latest Section: Latest Updates New -> created_at:desc
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("sort", "chapter_updated_at:desc")
+            .addQueryParameter("order[created_at]", "desc")
             .build()
         return GET(url, headers)
     }
@@ -70,51 +71,8 @@ class Comix : HttpSource() {
         }
 
         filters.forEach { filter ->
-            when (filter) {
-                is SortFilter -> {
-                    url.addQueryParameter("sort", filter.toUriPart())
-                }
-                is StatusFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("statuses[]", it.value)
-                    }
-                }
-                is TypeFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("types[]", it.value)
-                    }
-                }
-                is DemographicFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("demographics[]", it.value)
-                    }
-                }
-                is GenreFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("genres[]", it.value)
-                    }
-                }
-                is ThemeFilter -> {
-                    filter.state.filter { it.state }.forEach {
-                        url.addEncodedQueryParameter("themes[]", it.value)
-                    }
-                }
-                is MinChaptersFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("chapters_min", filter.state)
-                    }
-                }
-                is YearFromFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("year_from", filter.state)
-                    }
-                }
-                is YearToFilter -> {
-                    if (filter.state.isNotBlank()) {
-                        url.addQueryParameter("year_to", filter.state)
-                    }
-                }
-                else -> {}
+            if (filter is ComixFilters.UriFilter) {
+                filter.addToUri(url)
             }
         }
 
@@ -179,171 +137,7 @@ class Comix : HttpSource() {
         return json.decodeFromString(body.string())
     }
 
-    override fun getFilterList() = FilterList(
-        SortFilter(),
-        StatusFilter(),
-        TypeFilter(),
-        DemographicFilter(),
-        Filter.Separator(),
-        MinChaptersFilter(),
-        YearFromFilter(),
-        YearToFilter(),
-        Filter.Separator(),
-        GenreFilter(),
-        ThemeFilter()
-    )
-
-    private class SortFilter : Filter.Select<String>(
-        "Sort By",
-        arrayOf(
-            "Best Match",
-            "Updated Date",
-            "Created Date",
-            "Title Ascending",
-            "Year Descending",
-            "Average Score",
-            "Most Views 7d",
-            "Most Views 1mo",
-            "Most Views 3mo",
-            "Total Views",
-            "Most Follows",
-            "Rank"
-        )
-    ) {
-        fun toUriPart() = when (state) {
-            0 -> "relevance:desc"
-            1 -> "chapter_updated_at:desc"
-            2 -> "created_at:desc"
-            3 -> "title:asc"
-            4 -> "year:desc"
-            5 -> "score:desc"
-            6 -> "views_7d:desc"
-            7 -> "views_30d:desc"
-            8 -> "views_90d:desc"
-            9 -> "views_total:desc"
-            10 -> "follows_total:desc"
-            11 -> "rank:asc"
-            else -> "relevance:desc"
-        }
-    }
-
-    private class CheckBoxFilter(name: String, val value: String) : Filter.CheckBox(name)
-
-    private class StatusFilter : Filter.Group<CheckBoxFilter>(
-        "Status",
-        listOf(
-            CheckBoxFilter("Releasing", "releasing"),
-            CheckBoxFilter("Finished", "finished"),
-            CheckBoxFilter("On Hiatus", "on_hiatus"),
-            CheckBoxFilter("Discontinued", "discontinued"),
-            CheckBoxFilter("Not Yet Released", "not_yet_released")
-        )
-    )
-
-    private class TypeFilter : Filter.Group<CheckBoxFilter>(
-        "Type",
-        listOf(
-            CheckBoxFilter("Manga", "manga"),
-            CheckBoxFilter("Manhwa", "manhwa"),
-            CheckBoxFilter("Manhua", "manhua"),
-            CheckBoxFilter("Other", "other")
-        )
-    )
-
-    private class DemographicFilter : Filter.Group<CheckBoxFilter>(
-        "Demographic",
-        listOf(
-            CheckBoxFilter("Shounen", "2"),
-            CheckBoxFilter("Seinen", "4"),
-            CheckBoxFilter("Shoujo", "1"),
-            CheckBoxFilter("Josei", "3")
-        )
-    )
-
-    private class MinChaptersFilter : Filter.Text("Min Chapters")
-
-    private class YearFromFilter : Filter.Text("Year From")
-
-    private class YearToFilter : Filter.Text("Year To")
-
-    private class GenreFilter : Filter.Group<CheckBoxFilter>(
-        "Genres (AND)",
-        listOf(
-            CheckBoxFilter("Action", "6"),
-            CheckBoxFilter("Adult", "87264"),
-            CheckBoxFilter("Adventure", "7"),
-            CheckBoxFilter("Boys Love", "8"),
-            CheckBoxFilter("Comedy", "9"),
-            CheckBoxFilter("Crime", "10"),
-            CheckBoxFilter("Drama", "11"),
-            CheckBoxFilter("Ecchi", "87265"),
-            CheckBoxFilter("Fantasy", "12"),
-            CheckBoxFilter("Girls Love", "13"),
-            CheckBoxFilter("Hentai", "87266"),
-            CheckBoxFilter("Historical", "14"),
-            CheckBoxFilter("Horror", "15"),
-            CheckBoxFilter("Isekai", "16"),
-            CheckBoxFilter("Magical Girls", "17"),
-            CheckBoxFilter("Mature", "87267"),
-            CheckBoxFilter("Mecha", "18"),
-            CheckBoxFilter("Medical", "19"),
-            CheckBoxFilter("Mystery", "20"),
-            CheckBoxFilter("Philosophical", "21"),
-            CheckBoxFilter("Psychological", "22"),
-            CheckBoxFilter("Romance", "23"),
-            CheckBoxFilter("Sci-Fi", "24"),
-            CheckBoxFilter("Slice of Life", "25"),
-            CheckBoxFilter("Smut", "87268"),
-            CheckBoxFilter("Sports", "26"),
-            CheckBoxFilter("Superhero", "27"),
-            CheckBoxFilter("Thriller", "28"),
-            CheckBoxFilter("Tragedy", "29"),
-            CheckBoxFilter("Wuxia", "30")
-        )
-    )
-
-    private class ThemeFilter : Filter.Group<CheckBoxFilter>(
-        "Themes (AND)",
-        listOf(
-            CheckBoxFilter("Aliens", "31"),
-            CheckBoxFilter("Animals", "32"),
-            CheckBoxFilter("Cooking", "33"),
-            CheckBoxFilter("Crossdressing", "34"),
-            CheckBoxFilter("Delinquents", "35"),
-            CheckBoxFilter("Demons", "36"),
-            CheckBoxFilter("Genderswap", "37"),
-            CheckBoxFilter("Ghosts", "38"),
-            CheckBoxFilter("Gyaru", "39"),
-            CheckBoxFilter("Harem", "40"),
-            CheckBoxFilter("Incest", "41"),
-            CheckBoxFilter("Loli", "42"),
-            CheckBoxFilter("Mafia", "43"),
-            CheckBoxFilter("Magic", "44"),
-            CheckBoxFilter("Martial Arts", "45"),
-            CheckBoxFilter("Military", "46"),
-            CheckBoxFilter("Monster Girls", "47"),
-            CheckBoxFilter("Monsters", "48"),
-            CheckBoxFilter("Music", "49"),
-            CheckBoxFilter("Ninja", "50"),
-            CheckBoxFilter("Office Workers", "51"),
-            CheckBoxFilter("Police", "52"),
-            CheckBoxFilter("Post-Apocalyptic", "53"),
-            CheckBoxFilter("Reincarnation", "54"),
-            CheckBoxFilter("Reverse Harem", "55"),
-            CheckBoxFilter("Samurai", "56"),
-            CheckBoxFilter("School Life", "57"),
-            CheckBoxFilter("Shota", "58"),
-            CheckBoxFilter("Supernatural", "59"),
-            CheckBoxFilter("Survival", "60"),
-            CheckBoxFilter("Time Travel", "61"),
-            CheckBoxFilter("Traditional Games", "62"),
-            CheckBoxFilter("Vampires", "63"),
-            CheckBoxFilter("Video Games", "64"),
-            CheckBoxFilter("Villainess", "65"),
-            CheckBoxFilter("Virtual Reality", "66"),
-            CheckBoxFilter("Zombies", "67")
-        )
-    )
+    override fun getFilterList() = filters.getFilterList()
 
     @Serializable
     data class MangaListResponse(
