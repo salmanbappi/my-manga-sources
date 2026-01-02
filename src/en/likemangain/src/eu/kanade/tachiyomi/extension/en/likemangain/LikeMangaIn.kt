@@ -49,12 +49,13 @@ class LikeMangaIn : ParsedHttpSource() {
         manga.setUrlWithoutDomain(titleElement.attr("href"))
         manga.title = titleElement.attr("title").ifEmpty { titleElement.text() }.trim()
         manga.thumbnail_url = element.selectFirst("img")?.let { img ->
-            img.attr("data-src").ifEmpty { img.attr("src") }
+            val url = img.attr("data-src").ifEmpty { img.attr("src") }
+            url.trim()
         }
         return manga
     }
 
-    override fun popularMangaNextPageSelector() = "div.nav-previous, a.next.page-numbers"
+    override fun popularMangaNextPageSelector() = "a.nextpostslink"
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
@@ -115,7 +116,8 @@ class LikeMangaIn : ParsedHttpSource() {
         manga.genre = document.select("div.genres-content a").joinToString { it.text() }
         manga.status = parseStatus(document.select("div.post-status div.summary-content").text())
         manga.thumbnail_url = document.selectFirst("div.summary_image img")?.let { img ->
-            img.attr("data-src").ifEmpty { img.attr("src") }
+            val url = img.attr("data-src").ifEmpty { img.attr("src") }
+            url.trim()
         }
         return manga
     }
@@ -193,7 +195,7 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Pages
     override fun pageListParse(document: Document): List<Page> {
-        return document.select("div.reading-content img").mapIndexed { index, img ->
+        return document.select("div.reading-content img, .wp-manga-chapter-img").mapIndexed { index, img ->
             val url = img.attr("data-src").ifEmpty { img.attr("src") }
             Page(index, "", url.trim())
         }
