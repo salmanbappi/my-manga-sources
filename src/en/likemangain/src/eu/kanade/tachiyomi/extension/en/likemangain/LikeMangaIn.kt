@@ -143,6 +143,7 @@ class LikeMangaIn : ParsedHttpSource() {
         val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
             ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
             ?: document.selectFirst("a.wp-manga-action-button[data-post]")?.attr("data-post")
+            ?: document.selectFirst("div[data-post-id]")?.attr("data-post-id")
 
         if (mangaId != null) {
             val xhrHeaders = headersBuilder()
@@ -158,19 +159,19 @@ class LikeMangaIn : ParsedHttpSource() {
             val ajaxResponse = client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", xhrHeaders, formBody)).execute()
             val ajaxDoc = ajaxResponse.asJsoup()
 
-            ajaxDoc.select(chapterListSelector()).forEach {
+            ajaxDoc.select("div.chapter-item, li.wp-manga-chapter").forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
 
-        // Fallback or additional chapters in-page
+        // Fallback or additional chapters in-page (Restricted to listing container to avoid sidebar)
         if (chapters.isEmpty()) {
-            document.select(chapterListSelector()).forEach {
+            document.select("div.listing-chapters_wrap div.chapter-item, div.listing-chapters_wrap li.wp-manga-chapter").forEach {
                 chapters.add(chapterFromElement(it))
             }
         }
 
-        return chapters
+        return chapters.distinctBy { it.url }
     }
 
     override fun chapterListSelector() = "div.chapter-item, li.wp-manga-chapter"
