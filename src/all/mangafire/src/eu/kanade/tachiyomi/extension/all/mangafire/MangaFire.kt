@@ -37,7 +37,7 @@ import javax.net.ssl.X509TrustManager
 
 class MangaFire(
     override val lang: String,
-    private val langCode: String = lang,
+    private val langCode: String = lang
 ) : ConfigurableSource, HttpSource() {
     override val name = "MangaFire"
 
@@ -84,7 +84,7 @@ class MangaFire(
         return searchMangaRequest(
             page,
             "",
-            FilterList(SortFilter(defaultValue = "most_viewed")),
+            FilterList(SortFilter(defaultValue = "most_viewed"))
         )
     }
 
@@ -96,7 +96,7 @@ class MangaFire(
         return searchMangaRequest(
             page,
             "",
-            FilterList(SortFilter(defaultValue = "recently_updated")),
+            FilterList(SortFilter(defaultValue = "recently_updated"))
         )
     }
 
@@ -150,9 +150,9 @@ class MangaFire(
                                         $(".search-inner input[name=keyword]").val("$stdQuery").trigger("keyup");
                                       }, 1000);
                                     });
-                                    """.trimIndent(),
+                                    """.trimIndent()
                                 ) {}
-                            },
+                            }
                         )
                     }.toHttpUrl().queryParameter("vrf")
                         ?.takeIf { it.isNotBlank() }
@@ -204,7 +204,7 @@ class MangaFire(
         StatusFilter(),
         YearFilter(),
         MinChapterFilter(),
-        SortFilter(),
+        SortFilter()
     )
 
     // =========================== Manga Details ============================
@@ -317,7 +317,7 @@ class MangaFire(
                         WebViewHelper.RequestIntercept.Block
                     }
                 },
-                onPageFinish = {},
+                onPageFinish = {}
             )
         }
         if (intercepted.toHttpUrl().queryParameter("vrf") == null) {
@@ -372,7 +372,7 @@ class MangaFire(
 
     @Serializable
     class ResponseDto<T>(
-        val result: T,
+        val result: T
     )
 
     private fun String.toBodyFragment(): Document {

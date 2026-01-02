@@ -27,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class WebViewHelper(
     private val client: OkHttpClient,
-    private val headers: Headers,
+    private val headers: Headers
 ) {
     private val name = "MangaFire"
     private val mutex = Mutex()
@@ -36,7 +36,7 @@ class WebViewHelper(
     suspend fun loadInWebView(
         url: String,
         requestIntercept: (request: WebResourceRequest) -> RequestIntercept,
-        onPageFinish: (view: WebView) -> Unit = {},
+        onPageFinish: (view: WebView) -> Unit = {}
     ): String = mutex.withLock {
         withContext(Dispatchers.Main.immediate) {
             withTimeout(20.seconds) {
@@ -67,7 +67,7 @@ class WebViewHelper(
                         webViewClient = object : WebViewClient() {
                             override fun shouldInterceptRequest(
                                 view: WebView,
-                                request: WebResourceRequest,
+                                request: WebResourceRequest
                             ): WebResourceResponse? {
                                 if (request.url.toString() == url) {
                                     Log.d(name, "allowed: ${request.url}")
@@ -162,7 +162,7 @@ class WebViewHelper(
     enum class RequestIntercept {
         Allow,
         Block,
-        Capture,
+        Capture
     }
 
     private fun fetchWebResource(request: WebResourceRequest): WebResourceResponse = runBlocking(Dispatchers.IO) {
@@ -185,7 +185,7 @@ class WebViewHelper(
                 mediaType?.charset()?.name(),
                 Buffer().apply {
                     readFrom(response.body.byteStream())
-                }.inputStream(),
+                }.inputStream()
             )
         }
     }

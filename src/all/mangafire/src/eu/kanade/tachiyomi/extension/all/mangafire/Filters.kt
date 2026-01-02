@@ -12,11 +12,11 @@ open class UriPartFilter(
     name: String,
     private val param: String,
     private val vals: Array<Pair<String, String>>,
-    defaultValue: String? = null,
+    defaultValue: String? = null
 ) : Filter.Select<String>(
     name,
     vals.map { it.first }.toTypedArray(),
-    vals.indexOfFirst { it.second == defaultValue }.takeIf { it != -1 } ?: 0,
+    vals.indexOfFirst { it.second == defaultValue }.takeIf { it != -1 } ?: 0
 ),
     UriFilter {
     override fun addToUri(builder: HttpUrl.Builder) {
@@ -29,7 +29,7 @@ open class UriMultiSelectOption(name: String, val value: String) : Filter.CheckB
 open class UriMultiSelectFilter(
     name: String,
     private val param: String,
-    private val vals: Array<Pair<String, String>>,
+    private val vals: Array<Pair<String, String>>
 ) : Filter.Group<UriMultiSelectOption>(name, vals.map { UriMultiSelectOption(it.first, it.second) }), UriFilter {
     override fun addToUri(builder: HttpUrl.Builder) {
         val checked = state.filter { it.state }
@@ -45,7 +45,7 @@ open class UriTriSelectOption(name: String, val value: String) : Filter.TriState
 open class UriTriSelectFilter(
     name: String,
     private val param: String,
-    private val vals: Array<Pair<String, String>>,
+    private val vals: Array<Pair<String, String>>
 ) : Filter.Group<UriTriSelectOption>(name, vals.map { UriTriSelectOption(it.first, it.second) }), UriFilter {
     override fun addToUri(builder: HttpUrl.Builder) {
         state.forEach { s ->
@@ -66,8 +66,8 @@ class TypeFilter : UriMultiSelectFilter(
         Pair("Doujinshi", "doujinshi"),
         Pair("Novel", "novel"),
         Pair("Manhwa", "manhwa"),
-        Pair("Manhua", "manhua"),
-    ),
+        Pair("Manhua", "manhua")
+    )
 )
 
 class GenreFilter : UriTriSelectFilter(
@@ -114,8 +114,8 @@ class GenreFilter : UriTriSelectFilter(
         Pair("Supernatural", "76"),
         Pair("Suspense", "37"),
         Pair("Thriller", "38"),
-        Pair("Vampire", "39"),
-    ),
+        Pair("Vampire", "39")
+    )
 )
 
 class GenreModeFilter : Filter.CheckBox("Must have all the selected genres"), UriFilter {
@@ -134,14 +134,14 @@ class StatusFilter : UriMultiSelectFilter(
         Pair("Releasing", "releasing"),
         Pair("On Hiatus", "on_hiatus"),
         Pair("Discontinued", "discontinued"),
-        Pair("Not Yet Published", "info"),
-    ),
+        Pair("Not Yet Published", "info")
+    )
 )
 
 class YearFilter : UriMultiSelectFilter(
     "Year",
     "year[]",
-    years,
+    years
 ) {
     companion object {
         private val currentYear by lazy {
@@ -150,11 +150,11 @@ class YearFilter : UriMultiSelectFilter(
 
         private val years: Array<Pair<String, String>> = buildList(29) {
             addAll(
-                (currentYear downTo (currentYear - 20)).map(Int::toString),
+                (currentYear downTo (currentYear - 20)).map(Int::toString)
             )
 
             addAll(
-                (2000 downTo 1930 step 10).map { "${it}s" },
+                (2000 downTo 1930 step 10).map { "${it}s" }
             )
         }.map { Pair(it, it) }.toTypedArray()
     }
@@ -184,7 +184,7 @@ class SortFilter(defaultValue: String? = null) : UriPartFilter(
         Pair("Scores", "scores"),
         Pair("MAL scores", "mal_scores"),
         Pair("Most viewed", "most_viewed"),
-        Pair("Most favourited", "most_favourited"),
+        Pair("Most favourited", "most_favourited")
     ),
-    defaultValue,
+    defaultValue
 )
