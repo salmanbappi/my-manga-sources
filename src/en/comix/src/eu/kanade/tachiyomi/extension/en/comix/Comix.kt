@@ -1,5 +1,4 @@
 package eu.kanade.tachiyomi.extension.en.comix
-
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -16,24 +15,15 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
-
 class Comix : HttpSource() {
-
     override val name = "Comix"
-
     override val baseUrl = "https://comix.to"
-
     private val apiUrl = "https://comix.to/api/v2"
-
     override val lang = "en"
-
     override val supportsLatest = true
-
     private val json: Json by injectLazy()
-
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
-
     // Popular
     override fun popularMangaRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
@@ -42,14 +32,12 @@ class Comix : HttpSource() {
             .build()
         return GET(url, headers)
     }
-
     override fun popularMangaParse(response: Response): MangasPage {
         val data = response.parseAs<MangaListResponse>()
         val mangas = data.result.items.map { it.toSManga() }
         val hasNextPage = data.result.pagination.current_page < data.result.pagination.last_page
         return MangasPage(mangas, hasNextPage)
     }
-
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
@@ -58,18 +46,14 @@ class Comix : HttpSource() {
             .build()
         return GET(url, headers)
     }
-
     override fun latestUpdatesParse(response: Response) = popularMangaParse(response)
-
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$apiUrl/manga".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-
         if (query.isNotBlank()) {
             url.addQueryParameter("keyword", query)
         }
-
         filters.forEach { filter ->
             when (filter) {
                 is SortFilter -> {
@@ -118,38 +102,29 @@ class Comix : HttpSource() {
                 else -> {}
             }
         }
-
         return GET(url.build(), headers)
     }
-
     override fun searchMangaParse(response: Response) = popularMangaParse(response)
-
     // Details
     override fun mangaDetailsRequest(manga: SManga): Request {
         return GET("$apiUrl/manga${manga.url}", headers)
     }
-
     override fun mangaDetailsParse(response: Response): SManga {
         val data = response.parseAs<MangaDetailsResponse>()
         return data.result.toSManga()
     }
-
     override fun getMangaUrl(manga: SManga): String {
         return "$baseUrl/comic${manga.url}"
     }
-
     // Chapters
     override fun chapterListRequest(manga: SManga): Request {
         return GET("$apiUrl/manga${manga.url}/chapters", headers)
     }
-
     override fun chapterListParse(response: Response): List<SChapter> {
         val firstPage = response.parseAs<ChapterListResponse>()
         val chapters = firstPage.result.items.map { it.toSChapter() }.toMutableList()
-
         var currentPage = firstPage.result.pagination.current_page
         val lastPage = firstPage.result.pagination.last_page
-
         while (currentPage < lastPage) {
             currentPage++
             val url = response.request.url.newBuilder()
@@ -158,33 +133,26 @@ class Comix : HttpSource() {
             val nextResponse = client.newCall(GET(url, headers)).execute()
             val nextData = nextResponse.parseAs<ChapterListResponse>()
             chapters.addAll(nextData.result.items.map { it.toSChapter() })
-
             if (currentPage > 500) break // Safety break
         }
-
         return chapters
     }
-
     // Pages
     override fun pageListRequest(chapter: SChapter): Request {
         return GET("$apiUrl/chapters${chapter.url}", headers)
     }
-
     override fun pageListParse(response: Response): List<Page> {
         val data = response.parseAs<PageListResponse>()
         return data.result.images.mapIndexed { index, image ->
             Page(index, "", image.url)
         }
     }
-
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException("Not used")
     }
-
     private inline fun <reified T> Response.parseAs(): T {
         return json.decodeFromString(body.string())
     }
-
     override fun getFilterList() = FilterList(
         SortFilter(),
         StatusFilter(),
@@ -198,7 +166,6 @@ class Comix : HttpSource() {
         GenreFilter(),
         ThemeFilter()
     )
-
     private class SortFilter : Filter.Select<String>(
         "Sort By",
         arrayOf(
@@ -230,9 +197,7 @@ class Comix : HttpSource() {
             else -> "relevance:desc"
         }
     }
-
     private class CheckBoxFilter(name: String, val value: String) : Filter.CheckBox(name)
-
     private class StatusFilter : Filter.Group<CheckBoxFilter>(
         "Status",
         listOf(
@@ -243,7 +208,6 @@ class Comix : HttpSource() {
             CheckBoxFilter("Not Yet Released", "not_yet_released")
         )
     )
-
     private class TypeFilter : Filter.Group<CheckBoxFilter>(
         "Type",
         listOf(
@@ -253,7 +217,6 @@ class Comix : HttpSource() {
             CheckBoxFilter("Other", "other")
         )
     )
-
     private class DemographicFilter : Filter.Group<CheckBoxFilter>(
         "Demographic",
         listOf(
@@ -263,11 +226,9 @@ class Comix : HttpSource() {
             CheckBoxFilter("Josei", "3")
         )
     )
-
     private class MinChaptersFilter : Filter.Text("Min Chapters")
     private class YearFromFilter : Filter.Text("Year From")
     private class YearToFilter : Filter.Text("Year To")
-
     private class GenreFilter : Filter.Group<CheckBoxFilter>(
         "Genres (AND)",
         listOf(
@@ -303,7 +264,6 @@ class Comix : HttpSource() {
             CheckBoxFilter("Wuxia", "30")
         )
     )
-
     private class ThemeFilter : Filter.Group<CheckBoxFilter>(
         "Themes (AND)",
         listOf(
@@ -346,18 +306,15 @@ class Comix : HttpSource() {
             CheckBoxFilter("Zombies", "67")
         )
     )
-
     @Serializable
     data class MangaListResponse(
         val result: MangaListResult
     )
-
     @Serializable
     data class MangaListResult(
         val items: List<MangaItem>,
         val pagination: Pagination
     )
-
     @Serializable
     data class MangaItem(
         val hash_id: String,
@@ -372,25 +329,21 @@ class Comix : HttpSource() {
             this.thumbnail_url = poster?.large ?: poster?.medium ?: poster?.small
         }
     }
-
     @Serializable
     data class Poster(
         val small: String? = null,
         val medium: String? = null,
         val large: String? = null
     )
-
     @Serializable
     data class Pagination(
         val current_page: Int,
         val last_page: Int
     )
-
     @Serializable
     data class MangaDetailsResponse(
         val result: MangaDetails
     )
-
     @Serializable
     data class MangaDetails(
         val hash_id: String,
@@ -414,18 +367,15 @@ class Comix : HttpSource() {
             }
         }
     }
-
     @Serializable
     data class ChapterListResponse(
         val result: ChapterListResult
     )
-
     @Serializable
     data class ChapterListResult(
         val items: List<ChapterItem>,
         val pagination: Pagination
     )
-
     @Serializable
     data class ChapterItem(
         val chapter_id: Long,
@@ -441,22 +391,18 @@ class Comix : HttpSource() {
             scanlator = scanlation_group?.name
         }
     }
-
     @Serializable
     data class ScanlationGroup(
         val name: String
     )
-
     @Serializable
     data class PageListResponse(
         val result: PageListResult
     )
-
     @Serializable
     data class PageListResult(
         val images: List<ImageItem>
     )
-
     @Serializable
     data class ImageItem(
         val url: String

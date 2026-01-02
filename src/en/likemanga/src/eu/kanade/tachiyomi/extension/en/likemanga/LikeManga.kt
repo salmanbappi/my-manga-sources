@@ -1,5 +1,4 @@
 package eu.kanade.tachiyomi.extension.en.likemanga
-
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -21,27 +20,20 @@ import org.jsoup.nodes.Element
 import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
-
 class LikeManga : ParsedHttpSource() {
     override val name = "Like Manga"
     override val baseUrl = "https://likemanga.ink"
     override val lang = "en"
     override val supportsLatest = true
-
     override val client: OkHttpClient = network.cloudflareClient
-
     private val json: Json by injectLazy()
-
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
-
     // Popular
     override fun popularMangaRequest(page: Int): Request {
         return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=hot&pageNum=$page", headers)
     }
-
     override fun popularMangaSelector() = "div.video.position-relative"
-
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
         val titleElement = element.selectFirst("p.title-manga a")!!
@@ -50,23 +42,18 @@ class LikeManga : ParsedHttpSource() {
         manga.thumbnail_url = element.selectFirst("img.card-img-top")?.attr("abs:src")
         return manga
     }
-
     override fun popularMangaNextPageSelector() = "li.page-item.active + li a"
-
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
         return GET("$baseUrl/?act=search&f[status]=all&f[sortby]=lastest-chap&pageNum=$page", headers)
     }
-
     override fun latestUpdatesSelector() = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
-
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
         url.addQueryParameter("pageNum", page.toString())
-
         if (query.isNotBlank()) {
             url.addQueryParameter("act", "search")
             url.addQueryParameter("f[status]", "all")
@@ -91,14 +78,11 @@ class LikeManga : ParsedHttpSource() {
                 }
             }
         }
-
         return GET(url.build().toString(), headers)
     }
-
     override fun searchMangaSelector() = popularMangaSelector()
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
-
     // Details
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
@@ -106,39 +90,31 @@ class LikeManga : ParsedHttpSource() {
         manga.author = document.select("li.author p.col-8").text()
         manga.description = document.select("div#summary_shortened, div.detail-content p").text()
         manga.genre = document.select("li.kind p.col-8 a").joinToString { it.text() }
-
         val statusText = document.select("li.status p.col-8").text()
         manga.status = when {
             statusText.contains("Completed", true) -> SManga.COMPLETED
             statusText.contains("Ongoing", true) -> SManga.ONGOING
             else -> SManga.UNKNOWN
         }
-
         manga.thumbnail_url = document.selectFirst("div.col-image img")?.attr("abs:src")
         return manga
     }
-
     // Chapters - The site loads chapters via AJAX and paginates them
     override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
-
     override fun chapterListParse(response: Response): List<SChapter> {
         val body = response.body.string()
         val document = Jsoup.parse(body, response.request.url.toString())
         val mangaId = document.selectFirst("#title-detail-manga")?.attr("data-manga")
             ?: throw Exception("Could not find manga ID")
-
         val chapters = mutableListOf<SChapter>()
         var page = 1
         var hasNextPage = true
-
         while (hasNextPage) {
             val ajaxUrl = "$baseUrl/?act=ajax&code=load_list_chapter&manga_id=$mangaId&page_num=$page"
             val ajaxResponse = client.newCall(GET(ajaxUrl, headers)).execute()
             val jsonString = ajaxResponse.body.string()
-
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
             val ajaxHtml = jsonObject["list_chap"]?.jsonPrimitive?.content ?: ""
-
             if (ajaxHtml.isBlank()) {
                 hasNextPage = false
             } else {
@@ -156,12 +132,9 @@ class LikeManga : ParsedHttpSource() {
             // Safety break to prevent excessive requests
             if (page > 500) break
         }
-
         return chapters
     }
-
     override fun chapterListSelector() = "li.wp-manga-chapter"
-
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
         val linkElement = element.selectFirst("a")!!
@@ -170,7 +143,6 @@ class LikeManga : ParsedHttpSource() {
         chapter.date_upload = parseDate(element.select("span.chapter-release-date").text())
         return chapter
     }
-
     private fun parseDate(dateStr: String): Long {
         return try {
             if (dateStr.contains("New", true)) {
@@ -183,7 +155,6 @@ class LikeManga : ParsedHttpSource() {
             0L
         }
     }
-
     // Pages
     override fun pageListParse(document: Document): List<Page> {
         val pages = mutableListOf<Page>()
@@ -192,9 +163,7 @@ class LikeManga : ParsedHttpSource() {
         }
         return pages
     }
-
     override fun imageUrlParse(document: Document) = ""
-
     // Filters
     override fun getFilterList() = FilterList(
         Filter.Header("Search query ignores filters"),
@@ -203,7 +172,6 @@ class LikeManga : ParsedHttpSource() {
         Filter.Separator(),
         GenreGroup()
     )
-
     private class GenreGroup : Filter.Group<GenreCheckBox>("Genres", VALS.map { GenreCheckBox(it.first, it.second) }) {
         companion object {
             private val VALS = arrayOf(
@@ -278,15 +246,12 @@ class LikeManga : ParsedHttpSource() {
             )
         }
     }
-
     private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
-
     private class StatusFilter : Filter.Select<String>(
         "Status",
         VALS.map { it.first }.toTypedArray()
     ) {
         fun toUriPart() = VALS[state].second
-
         companion object {
             private val VALS = arrayOf(
                 Pair("All", "all"),
@@ -296,13 +261,11 @@ class LikeManga : ParsedHttpSource() {
             )
         }
     }
-
     private class SortFilter : Filter.Select<String>(
         "Sort by",
         VALS.map { it.first }.toTypedArray()
     ) {
         fun toUriPart() = VALS[state].second
-
         companion object {
             private val VALS = arrayOf(
                 Pair("Hot", "hot"),
