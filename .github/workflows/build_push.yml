@@ -13,6 +13,17 @@ on:
       - '.github/workflows/build_push.yml'
   # Manual trigger
   workflow_dispatch:
+    inputs:
+      extension:
+        description: 'Extension to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - likemanga
+          - comix
+          - mangafire
 
 permissions: {}
 
@@ -63,9 +74,22 @@ jobs:
         run: |
           echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
 
+      - name: Set Modules
+        id: set-modules
+        run: |
+          EXT="${{ github.event.inputs.extension || 'all' }}"
+          if [ "$EXT" == "all" ]; then
+            echo "MODULES=:src:en:likemanga:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+          elif [ "$EXT" == "likemanga" ]; then
+            echo "MODULES=:src:en:likemanga:assembleRelease" >> $GITHUB_ENV
+          elif [ "$EXT" == "comix" ]; then
+            echo "MODULES=:src:en:comix:assembleRelease" >> $GITHUB_ENV
+          elif [ "$EXT" == "mangafire" ]; then
+            echo "MODULES=:src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+          fi
+
       - name: Build extensions
         env:
-          MODULES: :src:en:likemanga:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease
           ALIAS: ${{ secrets.ALIAS }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

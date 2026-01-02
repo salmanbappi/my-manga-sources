@@ -39,6 +39,8 @@ def bump_version(file_path):
 
 if __name__ == "__main__":
     files_to_bump = [
+        "src/en/comix/build.gradle",
+        "src/en/likemanga/build.gradle",
         "src/all/mangafire/build.gradle"
     ]
     
