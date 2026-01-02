@@ -47,7 +47,7 @@ class LikeMangaIn : ParsedHttpSource() {
         val manga = SManga.create()
         val titleElement = element.selectFirst("div.item-thumb a")!!
         manga.setUrlWithoutDomain(titleElement.attr("href"))
-        manga.title = titleElement.attr("title").ifEmpty { titleElement.text() }
+        manga.title = titleElement.attr("title").ifEmpty { titleElement.text() }.trim()
         manga.thumbnail_url = element.selectFirst("img")?.let { img ->
             img.attr("data-src").ifEmpty { img.attr("src") }
         }
@@ -99,7 +99,7 @@ class LikeMangaIn : ParsedHttpSource() {
         return GET(url.build().toString(), headers)
     }
 
-    override fun searchMangaSelector() = "div.page-item-detail"
+    override fun searchMangaSelector() = popularMangaSelector()
 
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
 
@@ -111,7 +111,7 @@ class LikeMangaIn : ParsedHttpSource() {
         manga.title = document.selectFirst("div.post-title h1")?.text()?.trim() ?: "Unknown"
         manga.author = document.select("div.author-content a").joinToString { it.text() }
         manga.artist = document.select("div.artist-content a").joinToString { it.text() }
-        manga.description = document.select("div.description-summary div.summary__content").text()
+        manga.description = document.select("div.description-summary div.summary__content").text().trim()
         manga.genre = document.select("div.genres-content a").joinToString { it.text() }
         manga.status = parseStatus(document.select("div.post-status div.summary-content").text())
         manga.thumbnail_url = document.selectFirst("div.summary_image img")?.let { img ->
@@ -140,11 +140,12 @@ class LikeMangaIn : ParsedHttpSource() {
         // Check if chapters are loaded via AJAX
         val mangaId = document.selectFirst("div#manga-chapters-holder")?.attr("data-id")
             ?: document.selectFirst("input[name=wp-manga-data-id]")?.attr("value")
+            ?: document.selectFirst("a.wp-manga-action-button[data-post]")?.attr("data-post")
 
         if (mangaId != null) {
             val xhrHeaders = headersBuilder()
                 .add("X-Requested-With", "XMLHttpRequest")
-                .add("Referer", baseUrl + "/")
+                .add("Referer", response.request.url.toString())
                 .build()
 
             val formBody = FormBody.Builder()
@@ -170,13 +171,13 @@ class LikeMangaIn : ParsedHttpSource() {
         return chapters
     }
 
-    override fun chapterListSelector() = "li.wp-manga-chapter"
+    override fun chapterListSelector() = "div.chapter-item, li.wp-manga-chapter"
 
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
-        val link = element.selectFirst("a")!!
+        val link = element.selectFirst("a.btn-link, a")!!
         chapter.setUrlWithoutDomain(link.attr("href"))
-        chapter.name = link.text()
+        chapter.name = link.text().trim()
         chapter.date_upload = parseDate(element.select("span.chapter-release-date i, span.chapter-release-date").text())
         return chapter
     }
