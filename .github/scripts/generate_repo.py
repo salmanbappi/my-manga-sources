@@ -127,10 +127,10 @@ def generate():
             
             # Hard-force correct IDs for specific extensions
             if 'Comix' in name:
-                source_id = '65294073'
+                source_id = '7537715367149829912'
                 base_url = 'https://comix.to'
             elif 'Like Manga' in name:
-                source_id = '1524118164'
+                source_id = '411833355147795520'
                 base_url = 'https://likemanga.ink'
             else:
                 base_url = ""
