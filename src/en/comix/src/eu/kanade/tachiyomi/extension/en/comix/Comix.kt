@@ -146,10 +146,10 @@ class Comix : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val firstPage = response.parseAs<ChapterListResponse>()
         val chapters = firstPage.result.items.map { it.toSChapter() }.toMutableList()
-        
+
         var currentPage = firstPage.result.pagination.current_page
         val lastPage = firstPage.result.pagination.last_page
-        
+
         while (currentPage < lastPage) {
             currentPage++
             val url = response.request.url.newBuilder()
@@ -158,10 +158,10 @@ class Comix : HttpSource() {
             val nextResponse = client.newCall(GET(url, headers)).execute()
             val nextData = nextResponse.parseAs<ChapterListResponse>()
             chapters.addAll(nextData.result.items.map { it.toSChapter() })
-            
+
             if (currentPage > 500) break // Safety break
         }
-        
+
         return chapters
     }
 
@@ -462,3 +462,4 @@ class Comix : HttpSource() {
         val url: String
     )
 }
+
