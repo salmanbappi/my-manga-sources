@@ -75,15 +75,17 @@ class LikeMangaIn : ParsedHttpSource() {
         // Smart Search Strategy:
         // 1. Sanitize: Remove non-alphanumeric
         // 2. Tokenize: Split by space
-        // 3. Filter: Remove stop words (the, of, in...) and short words
-        // 4. Truncate: Use first 3 significant words to ensure WP finds matches
+        // 3. Filter: Remove stop words and short words
+        // 4. Sort: Prioritize LONGEST words (most unique) to avoid generic misses
+        // 5. Truncate: Use top 2 longest words
         val words = query.replace(Regex("[^a-zA-Z0-9 ]"), " ")
             .split(" ")
             .filter { it.length > 2 && it.lowercase(Locale.US) !in STOP_WORDS }
+            .sortedByDescending { it.length }
 
         // Fallback: if filtering removes everything, use the original query's first 2 words
         val cleanedQuery = if (words.isNotEmpty()) {
-            words.take(3).joinToString(" ")
+            words.take(2).joinToString(" ")
         } else {
             query.split(" ").take(2).joinToString(" ")
         }
