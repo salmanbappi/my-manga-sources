@@ -329,7 +329,7 @@ private object SearchUtils {
 
         // Token match
         val titleTokens = getTokens(title)
-        
+
         // If no tokens, rely purely on fuzzy/substring logic above
         if (titleTokens.isEmpty() || queryTokens.isEmpty()) return dice
 
