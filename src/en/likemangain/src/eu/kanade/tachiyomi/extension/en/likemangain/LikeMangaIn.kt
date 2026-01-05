@@ -314,40 +314,38 @@ private object SearchUtils {
             val normalizedTitle = normalize(manga.title)
             val score = calculateScore(normalizedTitle, normalizedQuery, queryTokens)
             manga to score
-        }.filter { it.second >= 0.4 } // Threshold filtering
+        }.filter { it.second >= 0.25 } // Lowered threshold from 0.4
             .sortedByDescending { it.second }
             .map { it.first }
     }
 
     private fun calculateScore(title: String, query: String, queryTokens: List<String>): Double {
         if (title.equals(query, ignoreCase = true)) return 1.0 // Exact match
+        if (title.startsWith(query, ignoreCase = true)) return 0.9 // Prefix match
+        if (title.contains(query, ignoreCase = true)) return 0.8 // Substring match
 
         // Fuzzy match (Sørensen–Dice)
         val dice = diceCoefficient(title, query)
 
         // Token match
         val titleTokens = getTokens(title)
-        // Fallback to pure fuzzy if no tokens (e.g. very short titles)
+        
+        // If no tokens, rely purely on fuzzy/substring logic above
         if (titleTokens.isEmpty() || queryTokens.isEmpty()) return dice
 
         // Calculate token overlap
         val tokenOverlap = queryTokens.count { qt -> titleTokens.any { tt -> tt == qt } }
         val tokenScore = tokenOverlap.toDouble() / queryTokens.size
 
-        // Early-exit filtering: discard candidates with low token overlap if query has enough tokens
-        // For short queries (1 token), fuzzy is more important. For long queries, tokens matter more.
-        if (queryTokens.size > 1 && tokenScore < 0.5 && dice < 0.5) return 0.0
-
-        // Weighted score: Token match (0.8) + Fuzzy match (0.2)
-        // Token match is primary for relevance, fuzzy helps with typos
-        return (tokenScore * 0.8) + (dice * 0.2)
+        // Combined score: Token (70%) + Fuzzy (30%)
+        return (tokenScore * 0.7) + (dice * 0.3)
     }
 
     private fun normalize(text: String): String {
-        // Fast normalization avoiding regex in hot paths
         val builder = StringBuilder(text.length)
         var lastWasSpace = false
         for (char in text) {
+            // Keep letters and digits
             if (char.isLetterOrDigit()) {
                 builder.append(char.lowercaseChar())
                 lastWasSpace = false
@@ -357,13 +355,14 @@ private object SearchUtils {
                     lastWasSpace = true
                 }
             }
+            // Ignore punctuation but don't replace with space unless necessary
         }
         return builder.toString().trim()
     }
 
     private fun getTokens(text: String): List<String> {
-        // Split by spaces and ignore short tokens (length < 3)
-        return text.split(' ').filter { it.length >= 3 }
+        // Split by spaces, allow 2-char tokens (e.g. "my", "no", "go")
+        return text.split(' ').filter { it.length >= 2 }
     }
 
     private fun diceCoefficient(s1: String, s2: String): Double {
@@ -371,7 +370,6 @@ private object SearchUtils {
         val n2 = s2.length
         if (n1 == 0 || n2 == 0) return 0.0
 
-        // Create bigrams
         val bigrams1 = HashSet<String>()
         for (i in 0 until n1 - 1) {
             bigrams1.add(s1.substring(i, i + 2))
