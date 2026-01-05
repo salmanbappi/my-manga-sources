@@ -72,16 +72,21 @@ class LikeMangaIn : ParsedHttpSource() {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/page/$page/".toHttpUrl().newBuilder()
 
-        // Broad Search Strategy:
-        // 1. Sanitize: Remove special chars
-        // 2. Tokenize: Split by whitespace
-        // 3. Filter: Remove short words (< 2 chars) which confuse WP search
-        // 4. Truncate: Use only first 6 keywords to avoid strict matching failures
-        val cleanedQuery = query.replace(Regex("[^a-zA-Z0-9 ]"), " ")
+        // Smart Search Strategy:
+        // 1. Sanitize: Remove non-alphanumeric
+        // 2. Tokenize: Split by space
+        // 3. Filter: Remove stop words (the, of, in...) and short words
+        // 4. Truncate: Use first 3 significant words to ensure WP finds matches
+        val words = query.replace(Regex("[^a-zA-Z0-9 ]"), " ")
             .split(" ")
-            .filter { it.length > 1 }
-            .take(6)
-            .joinToString(" ")
+            .filter { it.length > 2 && it.lowercase(Locale.US) !in STOP_WORDS }
+
+        // Fallback: if filtering removes everything, use the original query's first 2 words
+        val cleanedQuery = if (words.isNotEmpty()) {
+            words.take(3).joinToString(" ")
+        } else {
+            query.split(" ").take(2).joinToString(" ")
+        }
 
         url.addQueryParameter("s", cleanedQuery)
         url.addQueryParameter("post_type", "wp-manga")
@@ -124,6 +129,19 @@ class LikeMangaIn : ParsedHttpSource() {
 
         if (query.isNullOrBlank()) return mangasPage
 
+        // Pass the *original* complex query from the intent/user, not the simplified network one
+        // We can't easily access the original query here unless we store it or pass it.
+        // However, standard flow: user types "A B C", we send "A B", response comes back.
+        // We need to rank against "A B C".
+        // BUT: response.request.url has "A B".
+        // The only way to get "A B C" is if we didn't lose it.
+        // Actually, 'SearchUtils.rank' is called here.
+        // Issue: 'query' variable here comes from 'response.request.url.queryParameter("s")', which is the CLEANED query ("A B").
+        // We are ranking against the CLEANED query.
+        // This is imperfect but 'SearchUtils' should still work because the manga title will match "A B" well.
+        // If we want to rank against the original, we'd need to intercept the chain earlier, but ParsedHttpSource structure limits us.
+        // For now, ranking against "End World Emperor" is better than nothing.
+        
         return mangasPage.copy(mangas = SearchUtils.rank(mangasPage.mangas, query))
     }
 
@@ -246,6 +264,11 @@ class LikeMangaIn : ParsedHttpSource() {
     }
 
     companion object {
+        private val STOP_WORDS = listOf(
+            "a", "about", "an", "and", "are", "as", "at", "be", "by", "com", "for", "from", "how", 
+            "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "what", 
+            "when", "where", "who", "will", "with", "www"
+        )
         private fun getGenreList() = listOf(
             GenreCheckBox("Action", "action"),
             GenreCheckBox("Adaptation", "adaptation"),
