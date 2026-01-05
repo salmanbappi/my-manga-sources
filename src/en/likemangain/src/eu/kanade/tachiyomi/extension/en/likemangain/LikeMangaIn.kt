@@ -71,7 +71,9 @@ class LikeMangaIn : ParsedHttpSource() {
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/page/$page/".toHttpUrl().newBuilder()
-        url.addQueryParameter("s", query)
+        // Sanitize query: keep alphanumeric and space, collapse multiple spaces
+        val cleanedQuery = query.replace(Regex("[^a-zA-Z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
+        url.addQueryParameter("s", cleanedQuery)
         url.addQueryParameter("post_type", "wp-manga")
 
         filters.forEach { filter ->
