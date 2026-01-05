@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -104,6 +105,15 @@ class LikeMangaIn : ParsedHttpSource() {
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
 
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+
+    override fun searchMangaParse(response: Response): MangasPage {
+        val mangasPage = super.searchMangaParse(response)
+        val query = response.request.url.queryParameter("s")
+
+        if (query.isNullOrBlank()) return mangasPage
+
+        return mangasPage.copy(mangas = SearchUtils.rank(mangasPage.mangas, query))
+    }
 
     // Details
     override fun mangaDetailsParse(document: Document): SManga {
@@ -290,5 +300,89 @@ class LikeMangaIn : ParsedHttpSource() {
             GenreCheckBox("Yuri", "yuri"),
             GenreCheckBox("Zombies", "zombies")
         )
+    }
+}
+
+private object SearchUtils {
+    fun rank(mangas: List<SManga>, query: String): List<SManga> {
+        if (query.isBlank()) return mangas
+
+        val normalizedQuery = normalize(query)
+        val queryTokens = getTokens(normalizedQuery)
+
+        return mangas.map { manga ->
+            val normalizedTitle = normalize(manga.title)
+            val score = calculateScore(normalizedTitle, normalizedQuery, queryTokens)
+            manga to score
+        }.filter { it.second >= 0.4 } // Threshold filtering
+            .sortedByDescending { it.second }
+            .map { it.first }
+    }
+
+    private fun calculateScore(title: String, query: String, queryTokens: List<String>): Double {
+        if (title.equals(query, ignoreCase = true)) return 1.0 // Exact match
+
+        // Fuzzy match (Sørensen–Dice)
+        val dice = diceCoefficient(title, query)
+
+        // Token match
+        val titleTokens = getTokens(title)
+        // Fallback to pure fuzzy if no tokens (e.g. very short titles)
+        if (titleTokens.isEmpty() || queryTokens.isEmpty()) return dice
+
+        // Calculate token overlap
+        val tokenOverlap = queryTokens.count { qt -> titleTokens.any { tt -> tt == qt } }
+        val tokenScore = tokenOverlap.toDouble() / queryTokens.size
+
+        // Early-exit filtering: discard candidates with low token overlap if query has enough tokens
+        // For short queries (1 token), fuzzy is more important. For long queries, tokens matter more.
+        if (queryTokens.size > 1 && tokenScore < 0.5 && dice < 0.5) return 0.0
+
+        // Weighted score: Token match (0.8) + Fuzzy match (0.2)
+        // Token match is primary for relevance, fuzzy helps with typos
+        return (tokenScore * 0.8) + (dice * 0.2)
+    }
+
+    private fun normalize(text: String): String {
+        // Fast normalization avoiding regex in hot paths
+        val builder = StringBuilder(text.length)
+        var lastWasSpace = false
+        for (char in text) {
+            if (char.isLetterOrDigit()) {
+                builder.append(char.lowercaseChar())
+                lastWasSpace = false
+            } else if (char.isWhitespace()) {
+                if (!lastWasSpace) {
+                    builder.append(' ')
+                    lastWasSpace = true
+                }
+            }
+        }
+        return builder.toString().trim()
+    }
+
+    private fun getTokens(text: String): List<String> {
+        // Split by spaces and ignore short tokens (length < 3)
+        return text.split(' ').filter { it.length >= 3 }
+    }
+
+    private fun diceCoefficient(s1: String, s2: String): Double {
+        val n1 = s1.length
+        val n2 = s2.length
+        if (n1 == 0 || n2 == 0) return 0.0
+
+        // Create bigrams
+        val bigrams1 = HashSet<String>()
+        for (i in 0 until n1 - 1) {
+            bigrams1.add(s1.substring(i, i + 2))
+        }
+
+        val bigrams2 = HashSet<String>()
+        for (i in 0 until n2 - 1) {
+            bigrams2.add(s2.substring(i, i + 2))
+        }
+
+        val intersection = bigrams1.count { bigrams2.contains(it) }
+        return (2.0 * intersection) / (bigrams1.size + bigrams2.size)
     }
 }
