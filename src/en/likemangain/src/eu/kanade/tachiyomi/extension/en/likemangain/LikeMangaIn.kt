@@ -141,7 +141,7 @@ class LikeMangaIn : ParsedHttpSource() {
         // This is imperfect but 'SearchUtils' should still work because the manga title will match "A B" well.
         // If we want to rank against the original, we'd need to intercept the chain earlier, but ParsedHttpSource structure limits us.
         // For now, ranking against "End World Emperor" is better than nothing.
-        
+
         return mangasPage.copy(mangas = SearchUtils.rank(mangasPage.mangas, query))
     }
 
@@ -265,8 +265,8 @@ class LikeMangaIn : ParsedHttpSource() {
 
     companion object {
         private val STOP_WORDS = listOf(
-            "a", "about", "an", "and", "are", "as", "at", "be", "by", "com", "for", "from", "how", 
-            "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "what", 
+            "a", "about", "an", "and", "are", "as", "at", "be", "by", "com", "for", "from", "how",
+            "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "what",
             "when", "where", "who", "will", "with", "www"
         )
         private fun getGenreList() = listOf(
