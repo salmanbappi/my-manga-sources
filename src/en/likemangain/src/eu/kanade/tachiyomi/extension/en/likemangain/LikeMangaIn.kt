@@ -29,7 +29,7 @@ class LikeMangaIn : ParsedHttpSource() {
 
     override val supportsLatest = true
 
-    override val id: Long = 611833355147795521L
+    override val id: Long = 411833355147795520L
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -38,17 +38,22 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Popular
     override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/manga/?m_orderby=views&page=$page", headers)
+        return GET("$baseUrl/manga/page/$page/?m_orderby=views", headers)
     }
 
-    override fun popularMangaSelector() = "div.page-item-detail"
+    override fun popularMangaParse(response: Response): MangasPage {
+        val page = super.popularMangaParse(response)
+        return page.copy(mangas = page.mangas.distinctBy { it.url })
+    }
+
+    override fun popularMangaSelector() = "div.page-item-detail, div.c-tabs-item__content, div.row.c-tabs-item__content"
 
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
-        val titleElement = element.selectFirst("div.item-thumb a")!!
+        val titleElement = element.selectFirst("div.item-thumb a, div.tab-thumb a, div.post-title a, h3 a, h4 a")!!
         manga.setUrlWithoutDomain(titleElement.attr("href"))
         manga.title = titleElement.attr("title").ifEmpty { titleElement.text() }.trim()
-        manga.thumbnail_url = element.selectFirst("img")?.let { img ->
+        manga.thumbnail_url = element.select("img").firstOrNull { it.hasAttr("src") || it.hasAttr("data-src") }?.let { img ->
             val url = img.attr("data-src").ifEmpty { img.attr("src") }
             url.trim()
         }
@@ -59,7 +64,12 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/manga/?m_orderby=latest&page=$page", headers)
+        return GET("$baseUrl/manga/page/$page/?m_orderby=latest", headers)
+    }
+
+    override fun latestUpdatesParse(response: Response): MangasPage {
+        val page = super.latestUpdatesParse(response)
+        return page.copy(mangas = page.mangas.distinctBy { it.url })
     }
 
     override fun latestUpdatesSelector() = popularMangaSelector()
@@ -70,28 +80,14 @@ class LikeMangaIn : ParsedHttpSource() {
 
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$baseUrl/page/$page/".toHttpUrl().newBuilder()
-
-        // Smart Search Strategy:
-        // 1. Sanitize: Remove non-alphanumeric
-        // 2. Tokenize: Split by space
-        // 3. Filter: Remove stop words and short words
-        // 4. Sort: Prioritize LONGEST words (most unique) to avoid generic misses
-        // 5. Truncate: Use top 2 longest words
-        val words = query.replace(Regex("[^a-zA-Z0-9 ]"), " ")
-            .split(" ")
-            .filter { it.length > 2 && it.lowercase(Locale.US) !in STOP_WORDS }
-            .sortedByDescending { it.length }
-
-        // Fallback: if filtering removes everything, use the original query's first 2 words
-        val cleanedQuery = if (words.isNotEmpty()) {
-            words.take(2).joinToString(" ")
+        val url = if (query.isNotBlank()) {
+            "$baseUrl/page/$page/".toHttpUrl().newBuilder().apply {
+                addQueryParameter("s", query)
+                addQueryParameter("post_type", "wp-manga")
+            }
         } else {
-            query.split(" ").take(2).joinToString(" ")
+            "$baseUrl/manga/page/$page/".toHttpUrl().newBuilder()
         }
-
-        url.addQueryParameter("s", cleanedQuery)
-        url.addQueryParameter("post_type", "wp-manga")
 
         filters.forEach { filter ->
             when (filter) {
@@ -129,22 +125,11 @@ class LikeMangaIn : ParsedHttpSource() {
         val mangasPage = super.searchMangaParse(response)
         val query = response.request.url.queryParameter("s")
 
-        if (query.isNullOrBlank()) return mangasPage
+        val distinctMangas = mangasPage.mangas.distinctBy { it.url }
 
-        // Pass the *original* complex query from the intent/user, not the simplified network one
-        // We can't easily access the original query here unless we store it or pass it.
-        // However, standard flow: user types "A B C", we send "A B", response comes back.
-        // We need to rank against "A B C".
-        // BUT: response.request.url has "A B".
-        // The only way to get "A B C" is if we didn't lose it.
-        // Actually, 'SearchUtils.rank' is called here.
-        // Issue: 'query' variable here comes from 'response.request.url.queryParameter("s")', which is the CLEANED query ("A B").
-        // We are ranking against the CLEANED query.
-        // This is imperfect but 'SearchUtils' should still work because the manga title will match "A B" well.
-        // If we want to rank against the original, we'd need to intercept the chain earlier, but ParsedHttpSource structure limits us.
-        // For now, ranking against "End World Emperor" is better than nothing.
+        if (query.isNullOrBlank()) return mangasPage.copy(mangas = distinctMangas)
 
-        return mangasPage.copy(mangas = SearchUtils.rank(mangasPage.mangas, query))
+        return mangasPage.copy(mangas = SearchUtils.rank(distinctMangas, query))
     }
 
     // Details
@@ -266,11 +251,6 @@ class LikeMangaIn : ParsedHttpSource() {
     }
 
     companion object {
-        private val STOP_WORDS = listOf(
-            "a", "about", "an", "and", "are", "as", "at", "be", "by", "com", "for", "from", "how",
-            "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "what",
-            "when", "where", "who", "will", "with", "www"
-        )
         private fun getGenreList() = listOf(
             GenreCheckBox("Action", "action"),
             GenreCheckBox("Adaptation", "adaptation"),
