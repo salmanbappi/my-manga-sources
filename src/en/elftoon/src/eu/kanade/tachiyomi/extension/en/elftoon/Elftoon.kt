@@ -7,6 +7,10 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -27,6 +31,8 @@ class Elftoon : ParsedHttpSource() {
 
     override val id: Long = 884729104728194726L
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .add("Referer", "$baseUrl/")
 
@@ -42,11 +48,13 @@ class Elftoon : ParsedHttpSource() {
         val titleElement = element.selectFirst("a")!!
         manga.setUrlWithoutDomain(titleElement.attr("href"))
         manga.title = titleElement.attr("title").trim()
-        manga.thumbnail_url = element.selectFirst("img")?.attr("abs:src")
+        manga.thumbnail_url = element.selectFirst("img")?.let {
+            it.attr("abs:data-src").ifEmpty { it.attr("abs:src") }
+        }
         return manga
     }
 
-    override fun popularMangaNextPageSelector() = "a.next, a.r"
+    override fun popularMangaNextPageSelector() = "div.hpage a.r, a.next.page-numbers"
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
@@ -64,30 +72,30 @@ class Elftoon : ParsedHttpSource() {
         val url = if (query.isNotBlank()) {
             "$baseUrl/page/$page/".toHttpUrl().newBuilder().apply {
                 addQueryParameter("s", query)
-            }
+            }.build()
         } else {
-            "$baseUrl/manga/page/$page/".toHttpUrl().newBuilder().apply {
-                filters.forEach { filter ->
-                    when (filter) {
-                        is GenreGroup -> {
-                            filter.state.filter { it.state }.forEach {
-                                addQueryParameter("genre[]", it.value)
-                            }
+            val urlBuilder = "$baseUrl/manga/page/$page/".toHttpUrl().newBuilder()
+            filters.forEach { filter ->
+                when (filter) {
+                    is GenreGroup -> {
+                        filter.state.filter { it.state }.forEach {
+                            urlBuilder.addQueryParameter("genre[]", it.value)
                         }
-                        is StatusFilter -> {
-                            addQueryParameter("status", filter.toUriPart())
-                        }
-                        is TypeFilter -> {
-                            addQueryParameter("type", filter.toUriPart())
-                        }
-                        is OrderByFilter -> {
-                            addQueryParameter("order", filter.toUriPart())
-                        }
-                        else -> {}
                     }
+                    is StatusFilter -> {
+                        urlBuilder.addQueryParameter("status", filter.toUriPart())
+                    }
+                    is TypeFilter -> {
+                        urlBuilder.addQueryParameter("type", filter.toUriPart())
+                    }
+                    is OrderByFilter -> {
+                        urlBuilder.addQueryParameter("order", filter.toUriPart())
+                    }
+                    else -> {}
                 }
             }
-        }.build()
+            urlBuilder.build()
+        }
 
         return GET(url.toString(), headers)
     }
@@ -144,9 +152,18 @@ class Elftoon : ParsedHttpSource() {
 
     // Pages
     override fun pageListParse(document: Document): List<Page> {
-        return document.select("div#readerarea img[src]").mapIndexed { index, element ->
-            val url = element.attr("abs:src")
-            Page(index, "", url)
+        val scriptContent = document.selectFirst("script:containsData(ts_reader.run)")?.data()
+            ?: return emptyList()
+        
+        val jsonString = scriptContent.substringAfter("ts_reader.run(").substringBeforeLast(")")
+        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
+        val sources = jsonObject["sources"]?.jsonArray ?: return emptyList()
+        
+        // Use the first source's images
+        val images = sources[0].jsonObject["images"]?.jsonArray ?: return emptyList()
+        
+        return images.mapIndexed { index, element ->
+            Page(index, "", element.jsonPrimitive.content)
         }
     }
 
