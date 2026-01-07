@@ -10,6 +10,7 @@ Manga extensions for **Komikku**, **Mihon**, and other Tachiyomi forks. Develope
 | :--- | :---: | :--- |
 | **Comix** | EN | [comix.to](https://comix.to) |
 | **Like Manga** | EN | [likemanga.ink](https://likemanga.ink) |
+| **Elf Toon** | EN | [elftoon.xyz](https://elftoon.xyz) |
 
 ---
 

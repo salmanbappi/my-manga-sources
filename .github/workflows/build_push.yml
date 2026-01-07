@@ -25,6 +25,7 @@ on:
           - likemangain
           - comix
           - mangafire
+          - elftoon
 
 permissions: {}
 
@@ -80,7 +81,7 @@ jobs:
         run: |
           EXT="${{ github.event.inputs.extension || 'all' }}"
           if [ "$EXT" == "all" ]; then
-            echo "MODULES=:src:en:likemanga:assembleRelease :src:en:likemangain:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease" >> $GITHUB_ENV
+            echo "MODULES=:src:en:likemanga:assembleRelease :src:en:likemangain:assembleRelease :src:en:comix:assembleRelease :src:all:mangafire:assembleRelease :src:en:elftoon:assembleRelease" >> $GITHUB_ENV
             echo "RELEASE_NAME=Build ${{ github.run_number }} - All Extensions" >> $GITHUB_ENV
             echo "RELEASE_BODY=Automated build for all extensions." >> $GITHUB_ENV
           elif [ "$EXT" == "likemanga" ]; then
@@ -99,6 +100,10 @@ jobs:
             echo "MODULES=:src:all:mangafire:assembleRelease" >> $GITHUB_ENV
             echo "RELEASE_NAME=Build ${{ github.run_number }} - MangaFire" >> $GITHUB_ENV
             echo "RELEASE_BODY=Automated build for MangaFire." >> $GITHUB_ENV
+          elif [ "$EXT" == "elftoon" ]; then
+            echo "MODULES=:src:en:elftoon:assembleRelease" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Build ${{ github.run_number }} - Elf Toon" >> $GITHUB_ENV
+            echo "RELEASE_BODY=Automated build for Elf Toon." >> $GITHUB_ENV
           fi
 
       - name: Build extensions
