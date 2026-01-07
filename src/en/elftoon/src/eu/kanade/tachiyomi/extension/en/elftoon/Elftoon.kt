@@ -103,12 +103,12 @@ class Elftoon : ParsedHttpSource() {
         val manga = SManga.create()
         manga.title = document.selectFirst("h1.entry-title")?.text()?.trim() ?: ""
         manga.description = document.select("div.entry-content[itemprop=description] p").text().trim()
-        
+
         val infoElement = document.selectFirst("div.tsinfo")
         manga.author = infoElement?.select(".imptdt:contains(Author) i")?.text()?.trim()
         manga.artist = infoElement?.select(".imptdt:contains(Artist) i")?.text()?.trim()
         manga.genre = document.select(".mgen a").joinToString { it.text() }
-        
+
         val statusText = infoElement?.select(".imptdt:contains(Status) i")?.text()
         manga.status = when {
             statusText?.contains("Ongoing", true) == true -> SManga.ONGOING
@@ -116,7 +116,7 @@ class Elftoon : ParsedHttpSource() {
             statusText?.contains("Hiatus", true) == true -> SManga.ON_HIATUS
             else -> SManga.UNKNOWN
         }
-        
+
         manga.thumbnail_url = document.selectFirst("div.thumb img")?.attr("abs:src")
         return manga
     }
