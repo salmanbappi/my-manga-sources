@@ -8,8 +8,8 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -154,14 +154,14 @@ class Elftoon : ParsedHttpSource() {
     override fun pageListParse(document: Document): List<Page> {
         val scriptContent = document.selectFirst("script:containsData(ts_reader.run)")?.data()
             ?: return emptyList()
-        
+
         val jsonString = scriptContent.substringAfter("ts_reader.run(").substringBeforeLast(")")
         val jsonObject = json.parseToJsonElement(jsonString).jsonObject
         val sources = jsonObject["sources"]?.jsonArray ?: return emptyList()
-        
+
         // Use the first source's images
         val images = sources[0].jsonObject["images"]?.jsonArray ?: return emptyList()
-        
+
         return images.mapIndexed { index, element ->
             Page(index, "", element.jsonPrimitive.content)
         }
