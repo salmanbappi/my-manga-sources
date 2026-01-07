@@ -129,6 +129,9 @@ def generate():
             if 'Like Manga In' in name:
                 source_id = '611833355147795521'
                 base_url = 'https://likemanga.in'
+            elif 'Elf Toon' in name:
+                source_id = '884729104728194726'
+                base_url = 'https://elftoon.xyz'
             elif 'Comix' in name:
                 source_id = '7537715367149829912'
                 base_url = 'https://comix.to'
