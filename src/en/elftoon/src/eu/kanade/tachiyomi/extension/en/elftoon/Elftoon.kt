@@ -38,12 +38,7 @@ class Elftoon : ParsedHttpSource() {
 
     // Popular
     override fun popularMangaRequest(page: Int): Request {
-        val url = if (page == 1) {
-            "$baseUrl/manga/?order=popular"
-        } else {
-            "$baseUrl/manga/page/$page/?order=popular"
-        }
-        return GET(url, headers)
+        return GET("$baseUrl/manga/?page=$page", headers)
     }
 
     override fun popularMangaSelector() = "div.listupd div.bs div.bsx"
@@ -63,12 +58,7 @@ class Elftoon : ParsedHttpSource() {
 
     // Latest
     override fun latestUpdatesRequest(page: Int): Request {
-        val url = if (page == 1) {
-            "$baseUrl/manga/?order=update"
-        } else {
-            "$baseUrl/manga/page/$page/?order=update"
-        }
-        return GET(url, headers)
+        return GET("$baseUrl/manga/?page=$page&order=update", headers)
     }
 
     override fun latestUpdatesSelector() = popularMangaSelector()
@@ -80,13 +70,16 @@ class Elftoon : ParsedHttpSource() {
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = if (query.isNotBlank()) {
-            val baseUrlSearch = if (page == 1) "$baseUrl/manga/" else "$baseUrl/manga/page/$page/"
-            baseUrlSearch.toHttpUrl().newBuilder().apply {
+            baseUrl.toHttpUrl().newBuilder().apply {
                 addQueryParameter("s", query)
+                if (page > 1) {
+                    addPathSegment("page")
+                    addPathSegment(page.toString())
+                }
             }.build()
         } else {
-            val baseUrlManga = if (page == 1) "$baseUrl/manga/" else "$baseUrl/manga/page/$page/"
-            val urlBuilder = baseUrlManga.toHttpUrl().newBuilder()
+            val urlBuilder = "$baseUrl/manga/".toHttpUrl().newBuilder()
+            urlBuilder.addQueryParameter("page", page.toString())
             filters.forEach { filter ->
                 when (filter) {
                     is GenreGroup -> {
