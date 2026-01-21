@@ -1,7 +1,7 @@
 ext {
     extName = 'Madokami'
     extClass = '.Madokami'
-    extVersionCode = 3
+    extVersionCode = 4
     isNsfw = false
 }
 
