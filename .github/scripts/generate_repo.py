@@ -141,6 +141,9 @@ def generate():
             elif 'MangaFire' in name:
                 source_id = '1695572115'
                 base_url = 'https://mangafire.to'
+            elif 'Madokami' in name:
+                source_id = '-366516493107589975'
+                base_url = 'https://manga.madokami.al'
             else:
                 base_url = ""
 

@@ -43,6 +43,7 @@ if __name__ == "__main__":
         "src/en/likemanga/build.gradle",
         "src/en/likemangain/build.gradle",
         "src/en/elftoon/build.gradle",
+        "src/en/madokami/build.gradle",
         "src/all/mangafire/build.gradle"
     ]
     
