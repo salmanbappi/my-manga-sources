@@ -182,7 +182,7 @@ class Madokami : ConfigurableSource, ParsedHttpSource() {
                 .host("manga.madokami.al")
                 .addPathSegments("reader/image")
                 .addEncodedQueryParameter("path", URLEncoder.encode(path, "UTF-8"))
-                .addEncodedQueryParameter("file", URLEncoder.encode(file.jsonPrimitive.content, "UTF-8") )
+                .addEncodedQueryParameter("file", URLEncoder.encode(file.jsonPrimitive.content, "UTF-8"))
                 .build()
                 .toUrl()
             pages.add(Page(index, url.toExternalForm(), url.toExternalForm()))
