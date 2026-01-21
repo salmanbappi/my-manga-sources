@@ -59,12 +59,25 @@ class Madokami : ConfigurableSource, ParsedHttpSource() {
     override fun latestUpdatesNextPageSelector(): String? = null
     override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
 
+    private fun cleanUrl(urlStr: String): String {
+        val url = (baseUrl + urlStr).toHttpUrl()
+        val builder = url.newBuilder()
+        if (url.pathSize > 5 && url.pathSegments[0] == "Manga" && url.pathSegments[1].length == 1) {
+            for (i in 5 until url.pathSize) { builder.removePathSegment(5) }
+        } else if (url.pathSize > 2 && url.pathSegments[0] == "Raws") {
+            var i = url.pathSize - 1
+            while (url.pathSegments[i].startsWith("!") && i >= 2) { builder.removePathSegment(i); i--; }
+        }
+        return builder.build().encodedPath
+    }
+
     override fun popularMangaSelector(): String = "table.mobile-files-table tbody tr td:nth-child(1) a:nth-child(1)"
 
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
-        manga.url = element.attr("href")
-        val pathSegments = element.attr("href").split("/")
+        val href = element.attr("href")
+        manga.url = cleanUrl(href)
+        val pathSegments = href.split("/")
         var i = pathSegments.size
         manga.description = URLDecoder.decode(pathSegments[i - 1], "UTF-8")
         do { i--; manga.title = URLDecoder.decode(pathSegments[i], "UTF-8") } while (URLDecoder.decode(pathSegments[i], "UTF-8").startsWith("!"))
