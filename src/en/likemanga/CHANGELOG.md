@@ -1,5 +1,8 @@
 # Like Manga Changelog
 
+## [1.4.157] - 2026-11-01
+- Fix chapter page image URL extraction and canvas decoding.
+
 ## [1.4.155] - 2026-11-01
 - Migrate base URL from likemanga.ink to mgread.io.
 - Update parsing for InitManga theme.

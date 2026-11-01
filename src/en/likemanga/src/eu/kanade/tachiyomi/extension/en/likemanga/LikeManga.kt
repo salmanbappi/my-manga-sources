@@ -71,11 +71,7 @@ class LikeManga : ParsedHttpSource() {
         val titleElement = element.selectFirst("h2 a, h3 a, a.uk-link-toggle")!!
         manga.setUrlWithoutDomain(titleElement.attr("href"))
         manga.title = titleElement.text().trim()
-        manga.thumbnail_url = element.selectFirst("img")?.let { img ->
-            img.attr("data-original-src")
-                .ifEmpty { img.attr("data-src") }
-                .ifEmpty { img.attr("src") }
-        }?.trim()
+        manga.thumbnail_url = element.selectFirst("img")?.imgUrl()
         return manga
     }
 
@@ -155,11 +151,7 @@ class LikeManga : ParsedHttpSource() {
                 val manga = SManga.create()
                 manga.setUrlWithoutDomain(url)
                 manga.title = link.text().trim()
-                manga.thumbnail_url = element.selectFirst("img")?.let { img ->
-                    img.attr("data-original-src")
-                        .ifEmpty { img.attr("data-src") }
-                        .ifEmpty { img.attr("src") }
-                }?.trim()
+                manga.thumbnail_url = element.selectFirst("img")?.imgUrl()
                 manga
             }
         val hasNextPage = document.selectFirst("ul.uk-pagination li:not(.uk-disabled) a:has([uk-pagination-next])") != null ||
@@ -205,12 +197,9 @@ class LikeManga : ParsedHttpSource() {
             else -> SManga.UNKNOWN
         }
 
-        manga.thumbnail_url = document.selectFirst("meta[property=og:image]")?.attr("content")
-            ?: document.selectFirst("a.story-cover img, div.story-cover img, img.image-3-4")?.let { img ->
-                img.attr("data-original-src")
-                    .ifEmpty { img.attr("data-src") }
-                    .ifEmpty { img.attr("src") }
-            }
+        manga.thumbnail_url = document.selectFirst("meta[property=og:image]")?.let {
+            it.absUrl("content").ifEmpty { it.attr("content") }
+        } ?: document.selectFirst("a.story-cover img, div.story-cover img, img.image-3-4")?.imgUrl()
 
         return manga
     }
@@ -335,38 +324,47 @@ class LikeManga : ParsedHttpSource() {
                 if (el.tagName() == "canvas") {
                     val enc = el.attr("data-enc")
                     if (enc.isNotBlank()) {
-                        Base64.decode(enc, Base64.DEFAULT).reversedArray().decodeToString()
+                        val decoded = Base64.decode(enc, Base64.DEFAULT).reversedArray().decodeToString()
+                        if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+                            decoded
+                        } else {
+                            "$baseUrl${if (decoded.startsWith("/")) "" else "/"}$decoded"
+                        }
                     } else {
                         null
                     }
                 } else {
-                    val src = el.attr("data-original-src")
-                        .ifEmpty { el.attr("data-src") }
-                        .ifEmpty { el.attr("src") }
-                    if (src.isNotBlank() && !src.startsWith("data:")) el.absUrl(src) else null
+                    el.imgUrl()
                 }
-            }.mapIndexed { index, imgUrl ->
-                Page(index, "", imgUrl)
-            }
+            }.filter { it.isNotBlank() }
+                .mapIndexed { index, imgUrl ->
+                    Page(index, "", imgUrl)
+                }
         }
 
         return document.select("div#chapter-content img").mapNotNull { img ->
-            val src = img.attr("data-original-src")
-                .ifEmpty { img.attr("data-src") }
-                .ifEmpty { img.attr("src") }
-            if (src.isNotBlank() && !src.startsWith("data:")) img.absUrl(src) else null
-        }.mapIndexed { index, imgUrl ->
-            Page(index, "", imgUrl)
-        }
+            img.imgUrl()
+        }.filter { it.isNotBlank() }
+            .mapIndexed { index, imgUrl ->
+                Page(index, "", imgUrl)
+            }
     }
 
     override fun imageUrlParse(document: Document) = ""
 
     override fun imageRequest(page: Page): Request {
+        val imageUrl = page.imageUrl
+        require(!imageUrl.isNullOrBlank()) { "Page image URL must not be blank" }
         val newHeaders = headers.newBuilder()
             .set("Referer", "$baseUrl/")
             .build()
-        return GET(page.imageUrl!!, newHeaders)
+        return GET(imageUrl, newHeaders)
+    }
+
+    private fun Element.imgUrl(): String? {
+        return sequenceOf("data-original-src", "data-src", "src")
+            .map { absUrl(it) }
+            .firstOrNull { it.isNotBlank() && !it.startsWith("data:") }
     }
 
     // ============================= Encryption =============================
