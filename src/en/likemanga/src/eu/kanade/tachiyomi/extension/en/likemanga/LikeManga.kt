@@ -437,7 +437,7 @@ class LikeManga : ParsedHttpSource() {
         RatingMaxFilter(),
         SortFilter(),
         Filter.Separator(),
-        GenreFilter(),
+        GenreFilter()
     )
 
     private interface UriFilter {
@@ -447,7 +447,7 @@ class LikeManga : ParsedHttpSource() {
     private open class UriSelectFilter(
         name: String,
         private val queryName: String,
-        private val vals: Array<Pair<String, String>>,
+        private val vals: Array<Pair<String, String>>
     ) : Filter.Select<String>(name, vals.map { it.first }.toTypedArray()), UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
             val value = vals[state].second
@@ -463,8 +463,8 @@ class LikeManga : ParsedHttpSource() {
         arrayOf(
             Pair("All Types", ""),
             Pair("Comic", "comic"),
-            Pair("Oneshot", "oneshot"),
-        ),
+            Pair("Oneshot", "oneshot")
+        )
     )
 
     private class StatusFilter : UriSelectFilter(
@@ -477,8 +477,8 @@ class LikeManga : ParsedHttpSource() {
             Pair("Completed", "completed"),
             Pair("Source Hiatus", "source_hiatus"),
             Pair("Caught Up", "caught_up"),
-            Pair("Dropped", "dropped"),
-        ),
+            Pair("Dropped", "dropped")
+        )
     )
 
     private class AgeRatingFilter : UriSelectFilter(
@@ -489,8 +489,8 @@ class LikeManga : ParsedHttpSource() {
             Pair("All ages", "all"),
             Pair("13+", "13+"),
             Pair("16+", "16+"),
-            Pair("18+", "18+"),
-        ),
+            Pair("18+", "18+")
+        )
     )
 
     private class RatingMinFilter : UriSelectFilter(
@@ -502,8 +502,8 @@ class LikeManga : ParsedHttpSource() {
             Pair("2 stars", "2"),
             Pair("3 stars", "3"),
             Pair("4 stars", "4"),
-            Pair("5 stars", "5"),
-        ),
+            Pair("5 stars", "5")
+        )
     )
 
     private class RatingMaxFilter : UriSelectFilter(
@@ -515,8 +515,8 @@ class LikeManga : ParsedHttpSource() {
             Pair("2 stars", "2"),
             Pair("3 stars", "3"),
             Pair("4 stars", "4"),
-            Pair("5 stars", "5"),
-        ),
+            Pair("5 stars", "5")
+        )
     )
 
     private class SortFilter : UriSelectFilter(
@@ -532,16 +532,18 @@ class LikeManga : ParsedHttpSource() {
             Pair("Monthly Views", "views_month"),
             Pair("Highest Rating", "rating"),
             Pair("Most Power Stone", "power"),
-            Pair("Most Followers", "follow"),
-        ),
+            Pair("Most Followers", "follow")
+        )
     )
 
     private class GenreCheckBox(name: String, val value: String) : Filter.CheckBox(name)
 
-    private class GenreFilter : Filter.Group<GenreCheckBox>(
-        "Genres",
-        GENRES.map { GenreCheckBox(it.first, it.second) },
-    ), UriFilter {
+    private class GenreFilter :
+        Filter.Group<GenreCheckBox>(
+            "Genres",
+            GENRES.map { GenreCheckBox(it.first, it.second) }
+        ),
+        UriFilter {
         override fun addToUri(builder: HttpUrl.Builder) {
             state.filter { it.state }.forEach {
                 builder.addQueryParameter("genre[]", it.value)
@@ -578,7 +580,7 @@ class LikeManga : ParsedHttpSource() {
                 Pair("Smut", "smut"),
                 Pair("Sports", "sports"),
                 Pair("Supernatural", "supernatural"),
-                Pair("Webtoons", "webtoons"),
+                Pair("Webtoons", "webtoons")
             )
         }
     }
@@ -589,7 +591,7 @@ private class MgSearchDto(
     val title: String,
     val url: String,
     val thumb: String? = null,
-    @SerialName("post_type") val postType: String? = null,
+    @SerialName("post_type") val postType: String? = null
 )
 
 @Serializable
@@ -599,18 +601,18 @@ private class EncryptedPayloadDto(
     val salt: String? = null,
     val cid: Long? = null,
     val e: Long? = null,
-    val g: String? = null,
+    val g: String? = null
 )
 
 @Serializable
 private class ChapterKeyResponseDto(
-    val key: String,
+    val key: String
 )
 
 @Serializable
 private class ChapterListDto(
     val items: List<ChapterDto> = emptyList(),
-    @SerialName("total_pages") val totalPages: Int = 1,
+    @SerialName("total_pages") val totalPages: Int = 1
 )
 
 @Serializable
@@ -620,5 +622,5 @@ private class ChapterDto(
     val slug: String,
     @SerialName("created_at") val createdAt: String,
     @SerialName("lock_type") val lockType: String? = null,
-    @SerialName("is_purchased") val isPurchased: Boolean = false,
+    @SerialName("is_purchased") val isPurchased: Boolean = false
 )
